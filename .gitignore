@@ -1,0 +1,6 @@
+# Logs and scratch
+scratch/
+
+# OS generated files
+.DS_Store
+Thumbs.db

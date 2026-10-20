@@ -364,6 +364,27 @@ body {
   width: fit-content;
 }
 
+.btn-password-chip {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-right: 4px;
+}
+
+.btn-password-chip:hover {
+  background: rgba(99, 102, 241, 0.9);
+  color: #fff;
+  transform: scale(1.05);
+}
+
 .btn-logout-chip {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
@@ -5113,17 +5134,25 @@ textarea:focus {
     align-items: center !important;
     justify-content: center !important;
     padding: 1.5cm 0 !important;
+    height: auto !important;
   }
 
   .student-card-flipper {
     transform: none !important;
+    -webkit-transform: none !important;
     display: flex !important;
+    flex-direction: row !important;
     gap: 12mm !important;
     box-shadow: none !important;
+    height: auto !important;
   }
 
   .student-card-face {
     position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
     width: 85.6mm !important;
     height: 54mm !important;
     min-width: 85.6mm !important;
@@ -5132,19 +5161,52 @@ textarea:focus {
     max-height: 54mm !important;
     border-radius: 3.2mm !important;
     padding: 2.2mm 3.2mm !important;
-    border: 0.5px solid #0f172a !important;
-    page-break-inside: avoid;
+    border: 0.5px solid rgba(0,0,0,0.4) !important;
+    page-break-inside: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
+  }
+
+  .student-card-front,
+  .student-card-back {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   .student-card-face .sc-photo-box {
     width: 17mm !important;
-    height: 22mm !important;
     min-width: 17mm !important;
-    min-height: 22mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.8mm !important;
+  }
+
+  .student-card-face .sc-photo {
+    width: 17mm !important;
+    height: 21mm !important;
     border-radius: 1.8mm !important;
+    font-size: 8pt !important;
+  }
+
+  .student-card-face .sc-smart-chip {
+    width: 8.5mm !important;
+    height: 6mm !important;
   }
 
   .student-card-face .sc-school-name {
@@ -5164,26 +5226,33 @@ textarea:focus {
     font-size: 4.2pt !important;
   }
 
+  .student-card-face .sc-status-pill {
+    font-size: 4pt !important;
+    padding: 0.3mm 1.2mm !important;
+  }
+
   .student-card-face .sc-qr-box {
     padding: 1mm !important;
   }
 
   .student-card-face .sc-qr-box .sc-qr-img {
-    width: 16mm !important;
-    height: 16mm !important;
+    width: 15mm !important;
+    height: 15mm !important;
   }
 
+  .student-card-face .sc-legal-text,
   .student-card-face .sc-verso-legal {
-    font-size: 4.2pt !important;
+    font-size: 3.8pt !important;
     line-height: 1.25 !important;
+    margin-bottom: 0.8mm !important;
+  }
+
+  .student-card-face .sc-auth-code {
+    font-size: 4.6pt !important;
   }
 
   .student-card-face .sc-verso-school {
     font-size: 6.2pt !important;
-  }
-
-  .student-card-back {
-    transform: none !important;
   }
 }
 

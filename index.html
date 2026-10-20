@@ -417,6 +417,9 @@
                         <span class="user-name" id="sidebar-user-name">Administrador</span>
                         <span class="user-role-badge role-gestao" id="sidebar-user-role-badge">Gestão</span>
                     </div>
+                    <button type="button" class="btn-password-chip" onclick="app.openChangePasswordModal()" title="Alterar Senha de Acesso">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
                     <button class="btn-logout-chip" onclick="app.logout()" title="Sair do Sistema">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
@@ -473,6 +476,10 @@
                             <!-- Renderizado dinamicamente pelo NotificationsModule -->
                         </div>
                     </div>
+
+                    <button type="button" class="action-btn-circle" onclick="app.openChangePasswordModal()" title="Alterar Senha de Acesso">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
 
                     <button class="action-btn-circle" onclick="app.toggleTheme()" title="Alternar Tema Claro/Escuro">
                         <i class="fa-solid fa-moon" id="theme-icon"></i>
@@ -2017,6 +2024,69 @@
                         onclick="app.closeModal('modal-user')">Cancelar</button>
                     <button type="submit" class="btn btn-primary" id="btn-save-user"><i class="fa-solid fa-check"></i>
                         Salvar Usuário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Alterar Senha de Acesso -->
+    <div class="modal-overlay" id="modal-change-password">
+        <div class="modal-card" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-change-password-title">
+                    <i class="fa-solid fa-key" style="color: #6366f1;"></i> Alterar Senha de Acesso
+                </h3>
+                <button type="button" class="action-btn-circle" onclick="app.closeModal('modal-change-password')">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="app.handleChangePasswordSubmit(event)">
+                <div class="modal-body">
+                    <div class="callout-tip" style="margin-bottom: 1.25rem;">
+                        <i class="fa-solid fa-shield-halved" style="color: #6366f1; font-size: 1.2rem;"></i>
+                        <div>
+                            <strong>Segurança da Conta:</strong> Para sua proteção, digite sua senha atual e defina a nova senha com confirmação.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="change-pass-current">Senha Atual *</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="change-pass-current" class="form-control" style="padding-right: 2.75rem;" placeholder="Digite sua senha atual" required autocomplete="current-password">
+                            <button type="button" class="btn-toggle-pass" onclick="app.togglePasswordVisibility('change-pass-current', this)" tabindex="-1" title="Mostrar/Ocultar Senha">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="change-pass-new">Nova Senha *</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="change-pass-new" class="form-control" style="padding-right: 2.75rem;" placeholder="Mínimo de 6 caracteres" minlength="6" required autocomplete="new-password">
+                            <button type="button" class="btn-toggle-pass" onclick="app.togglePasswordVisibility('change-pass-new', this)" tabindex="-1" title="Mostrar/Ocultar Senha">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                        <small style="color: var(--text-muted); display: block; margin-top: 4px;">
+                            <i class="fa-solid fa-circle-info"></i> A nova senha deve ter no mínimo 6 caracteres.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="change-pass-confirm">Confirmar Nova Senha *</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="change-pass-confirm" class="form-control" style="padding-right: 2.75rem;" placeholder="Digite novamente a nova senha" minlength="6" required autocomplete="new-password">
+                            <button type="button" class="btn-toggle-pass" onclick="app.togglePasswordVisibility('change-pass-confirm', this)" tabindex="-1" title="Mostrar/Ocultar Senha">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-change-password')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-change-password">
+                        <i class="fa-solid fa-lock"></i> Atualizar Senha
+                    </button>
                 </div>
             </form>
         </div>

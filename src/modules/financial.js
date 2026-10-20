@@ -1014,7 +1014,7 @@ export class FinancialModule {
     // Preencher linhas da tabela de parcelas
     const tbody = document.getElementById('table-carne-body');
     if (tbody) {
-      const isStaff = this.app.checkPermission(['gestao', 'secretaria']);
+      const isStaff = this.app.hasRole ? this.app.hasRole('gestao', 'secretaria') : ['gestao', 'secretaria'].includes(this.app.currentRole);
       const today = new Date();
 
       tbody.innerHTML = competencias.map(comp => {

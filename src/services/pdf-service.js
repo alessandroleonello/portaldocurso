@@ -364,7 +364,8 @@ export class PdfService {
           <title>${this.app.escapeHTML(filename)}</title>
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             html, body {
@@ -555,6 +556,21 @@ export class PdfService {
    */
   getStudentCardStyles() {
     return `
+      .student-card-viewport {
+        perspective: none !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .student-card-flipper {
+        transform: none !important;
+        -webkit-transform: none !important;
+        display: block !important;
+        width: auto !important;
+        height: auto !important;
+        box-shadow: none !important;
+      }
       .student-card-face {
         width: 85.6mm !important;
         height: 54mm !important;
@@ -562,59 +578,90 @@ export class PdfService {
         min-height: 54mm !important;
         max-width: 85.6mm !important;
         max-height: 54mm !important;
-        border-radius: 3.2mm;
-        padding: 2.2mm 3.2mm;
-        box-sizing: border-box;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #ffffff;
-        overflow: hidden;
+        border-radius: 3.2mm !important;
+        padding: 2.2mm 3.2mm !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color: #ffffff !important;
+        overflow: hidden !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        backface-visibility: visible !important;
+        -webkit-backface-visibility: visible !important;
+        page-break-inside: avoid !important;
       }
       .student-card-front {
         background: linear-gradient(135deg, #0f2b48 0%, #1e4d77 60%, #2563eb 100%) !important;
-        border: 0.5px solid rgba(255,255,255,0.3) !important;
+        border: 0.5px solid rgba(255,255,255,0.4) !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        backface-visibility: visible !important;
+        -webkit-backface-visibility: visible !important;
       }
       .student-card-back {
         background: linear-gradient(135deg, #09131f 0%, #111d2e 60%, #1e293b 100%) !important;
-        border: 0.5px solid rgba(255,255,255,0.25) !important;
+        border: 0.5px solid rgba(255,255,255,0.3) !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        backface-visibility: visible !important;
+        -webkit-backface-visibility: visible !important;
       }
-      .sc-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(255,255,255,0.3); padding-bottom: 1.2mm; }
-      .sc-header-brand { display: flex; align-items: center; gap: 2mm; }
-      .sc-logo-mini { width: 5.5mm; height: 5.5mm; background: rgba(255,255,255,0.2); border-radius: 1.2mm; display: flex; align-items: center; justify-content: center; font-size: 6pt; color: #fff; flex-shrink: 0; }
-      .sc-school-name { font-family: 'Outfit', sans-serif; font-size: 6.2pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: #fff; max-width: 50mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .sc-doc-type { font-size: 4.2pt; color: #93c5fd; font-weight: 600; letter-spacing: 0.04em; }
-      .sc-chip-hologram { width: 7mm; height: 4.8mm; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 1mm; border: 0.5px solid rgba(255,255,255,0.6); flex-shrink: 0; }
-      .sc-body { display: flex; gap: 2.2mm; align-items: center; margin: 1mm 0; flex: 1; min-height: 0; }
-      .sc-photo-box { width: 17mm; height: 22mm; min-width: 17mm; min-height: 22mm; border-radius: 1.8mm; border: 0.8px solid rgba(255,255,255,0.7); overflow: hidden; background: #334155; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-      .sc-photo-img { width: 100%; height: 100%; object-fit: cover; }
-      .sc-photo-placeholder { font-size: 14pt; font-weight: 800; color: #93c5fd; }
-      .sc-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8mm 1.5mm; flex: 1; min-width: 0; }
-      .sc-field { display: flex; flex-direction: column; min-width: 0; }
-      .sc-field.sc-full { grid-column: span 2; }
-      .sc-label { font-size: 4.2pt; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.02em; }
-      .sc-value { font-size: 5.6pt; color: #ffffff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-      .sc-name-value { font-size: 6.5pt; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .sc-highlight { color: #fbbf24; font-weight: 800; }
-      .sc-footer { display: flex; justify-content: space-between; align-items: center; border-top: 0.5px solid rgba(255,255,255,0.25); padding-top: 1mm; font-size: 4.8pt; color: #cbd5e1; }
-      .sc-footer-tag { font-weight: 700; color: #93c5fd; }
-      .sc-validade strong { color: #34d399; }
-      .sc-verso-header { border-bottom: 0.5px solid rgba(255,255,255,0.2); padding-bottom: 1.2mm; }
-      .sc-verso-school { font-family: 'Outfit', sans-serif; font-size: 6.2pt; font-weight: 800; color: #fff; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .sc-verso-meta { font-size: 4.5pt; color: #94a3b8; }
-      .sc-verso-body { display: flex; align-items: center; gap: 2.2mm; margin: 1mm 0; flex: 1; min-height: 0; }
-      .sc-qr-box { background: #ffffff; padding: 1mm; border-radius: 1.5mm; flex-shrink: 0; text-align: center; }
-      .sc-qr-img { width: 16mm; height: 16mm; display: block; }
-      .sc-qr-caption { font-size: 3.5pt; color: #0f172a; font-weight: 700; margin-top: 0.5mm; }
-      .sc-verso-legal { font-size: 4.2pt; color: #cbd5e1; line-height: 1.25; flex: 1; }
-      .sc-verso-footer { border-top: 0.5px solid rgba(255,255,255,0.2); padding-top: 1mm; display: flex; justify-content: space-between; font-size: 4.5pt; color: #94a3b8; }
-      .sc-status-pill { background: rgba(16,185,129,0.25); border: 0.5px solid #10b981; color: #34d399; font-size: 4.5pt; font-weight: 800; padding: 0.5mm 1.5mm; border-radius: 9999px; }
+      .sc-header { display: flex !important; justify-content: space-between !important; align-items: center !important; border-bottom: 0.5px solid rgba(255,255,255,0.3) !important; padding-bottom: 1.2mm !important; }
+      .sc-header-brand { display: flex !important; align-items: center !important; gap: 2mm !important; }
+      .sc-header-text { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
+      .sc-logo-mini { width: 5.5mm !important; height: 5.5mm !important; background: rgba(255,255,255,0.2) !important; border-radius: 1.2mm !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 6pt !important; color: #fff !important; flex-shrink: 0 !important; }
+      .sc-school-name { font-family: 'Outfit', sans-serif !important; font-size: 6.2pt !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 0.02em !important; color: #fff !important; max-width: 48mm !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      .sc-doc-type { font-size: 4.2pt !important; color: #93c5fd !important; font-weight: 600 !important; letter-spacing: 0.04em !important; }
+      .sc-chip-hologram { flex-shrink: 0 !important; }
+      .sc-smart-chip { width: 8.5mm !important; height: 6mm !important; background: linear-gradient(135deg, #d4af37 0%, #f6e05e 50%, #b7791f 100%) !important; border-radius: 1.2mm !important; position: relative !important; border: 0.4px solid #ecc94b !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .sc-smart-chip .chip-line:first-child { position: absolute !important; top: 50% !important; left: 0 !important; right: 0 !important; height: 0.3px !important; background: rgba(0,0,0,0.3) !important; }
+      .sc-smart-chip .chip-line:last-child { position: absolute !important; top: 0 !important; bottom: 0 !important; left: 50% !important; width: 0.3px !important; background: rgba(0,0,0,0.3) !important; }
+      .sc-body { display: flex !important; gap: 2.5mm !important; align-items: center !important; margin: 1mm 0 !important; flex: 1 !important; min-height: 0 !important; }
+      .sc-photo-box { width: 17mm !important; min-width: 17mm !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 0.8mm !important; flex-shrink: 0 !important; }
+      .sc-photo { width: 17mm !important; height: 21mm !important; border-radius: 1.8mm !important; border: 0.8px solid rgba(255,255,255,0.7) !important; overflow: hidden !important; background: #1e293b !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8pt !important; font-weight: 800 !important; color: #93c5fd !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .sc-photo img, .sc-photo-img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+      .sc-info-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0.8mm 1.5mm !important; flex: 1 !important; min-width: 0 !important; }
+      .sc-field { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
+      .sc-field.sc-full { grid-column: span 2 !important; }
+      .sc-label { font-size: 4.2pt !important; text-transform: uppercase !important; color: #93c5fd !important; font-weight: 700 !important; letter-spacing: 0.02em !important; }
+      .sc-value { font-size: 5.6pt !important; color: #ffffff !important; font-weight: 600 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; }
+      .sc-name-value { font-size: 6.5pt !important; font-weight: 800 !important; color: #ffffff !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      .sc-highlight { color: #fbbf24 !important; font-weight: 800 !important; font-family: 'JetBrains Mono', monospace !important; }
+      .sc-status-pill { background: rgba(16,185,129,0.25) !important; border: 0.5px solid #10b981 !important; color: #34d399 !important; font-size: 4pt !important; font-weight: 800 !important; padding: 0.3mm 1.2mm !important; border-radius: 9999px !important; white-space: nowrap !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .sc-footer { display: flex !important; justify-content: space-between !important; align-items: center !important; border-top: 0.5px solid rgba(255,255,255,0.25) !important; padding-top: 1mm !important; font-size: 4.8pt !important; color: #cbd5e1 !important; }
+      .sc-footer-tag { font-weight: 700 !important; color: #93c5fd !important; }
+      .sc-validade strong { color: #34d399 !important; font-weight: 800 !important; }
+      .sc-verso-header { border-bottom: 0.5px solid rgba(255,255,255,0.2) !important; padding-bottom: 1mm !important; }
+      .sc-verso-school { font-family: 'Outfit', sans-serif !important; font-size: 6.2pt !important; font-weight: 800 !important; color: #fff !important; text-transform: uppercase !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      .sc-verso-meta { font-size: 4.2pt !important; color: #94a3b8 !important; }
+      .sc-verso-body { display: flex !important; align-items: center !important; gap: 2.2mm !important; margin: 1mm 0 !important; flex: 1 !important; min-height: 0 !important; }
+      .sc-qr-box { background: #ffffff !important; padding: 1mm !important; border-radius: 1.5mm !important; flex-shrink: 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; }
+      .sc-qr-img { width: 15mm !important; height: 15mm !important; display: block !important; }
+      .sc-qr-caption { font-size: 3.5pt !important; color: #0f172a !important; font-weight: 700 !important; margin-top: 0.4mm !important; }
+      .sc-verso-details { flex: 1 !important; min-width: 0 !important; text-align: left !important; }
+      .sc-auth-key-box { margin-bottom: 0.8mm !important; }
+      .sc-auth-code { font-family: 'JetBrains Mono', monospace !important; font-size: 4.6pt !important; font-weight: 800 !important; color: #38bdf8 !important; background: rgba(56,189,248,0.15) !important; padding: 0.3mm 1.5mm !important; border-radius: 0.8mm !important; border: 0.3px solid rgba(56,189,248,0.4) !important; display: inline-block !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .sc-legal-text, .sc-verso-legal { font-size: 3.8pt !important; color: #cbd5e1 !important; line-height: 1.25 !important; margin: 0 0 0.8mm 0 !important; }
+      .sc-verso-stamp { font-size: 4.2pt !important; color: #34d399 !important; font-weight: 700 !important; display: flex !important; align-items: center !important; gap: 1mm !important; }
+      .sc-footer-verso { border-top: 0.5px solid rgba(255,255,255,0.2) !important; padding-top: 1mm !important; display: flex !important; justify-content: space-between !important; font-size: 4.5pt !important; color: #94a3b8 !important; }
     `;
   }
 
@@ -1355,7 +1402,7 @@ export class PdfService {
      8. EXPORTAÇÃO DO RELATÓRIO FINANCEIRO (AUTOTABLE VETORIAL)
      ========================================================================= */
   async exportFinancialReport() {
-    const isGestao = this.app.checkPermission ? this.app.checkPermission(['gestao', 'secretaria']) : true;
+    const isGestao = this.app.hasRole ? this.app.hasRole('gestao', 'secretaria') : true;
     const filename = isGestao ? 'Relatorio_Financeiro_Gerencial_2026' : 'Extrato_Financeiro_Mensalidades';
 
     const doc = await this.createPdfDoc('portrait');

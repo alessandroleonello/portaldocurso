@@ -581,7 +581,7 @@ export class AcademicCalendarModule {
     if (!tbody) return;
 
     const monthEvents = this.getEventsForMonth(this.currentYear, this.currentMonth);
-    const canManage = this.app.checkPermission(['gestao', 'secretaria']);
+    const canManage = this.app.hasRole ? this.app.hasRole('gestao', 'secretaria') : ['gestao', 'secretaria'].includes(this.app.currentRole);
 
     // Filtrar por categoria selecionada
     let filteredEvents = monthEvents;

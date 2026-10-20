@@ -424,12 +424,19 @@ class PortalApp {
     return this.confirmAction(options);
   }
 
-  checkPermission(allowedRoles, actionName) {
+  checkPermission(allowedRoles, actionName = null) {
     if (!allowedRoles.includes(this.currentRole)) {
-      this.showToast(`O perfil "${this.currentRole.toUpperCase()}" não possui permissão para ${actionName}.`, 'error', 'Acesso Negado');
+      if (actionName) {
+        this.showToast(`O perfil "${this.currentRole.toUpperCase()}" não possui permissão para ${actionName}.`, 'error', 'Acesso Negado');
+      }
       return false;
     }
     return true;
+  }
+
+  hasRole(...roles) {
+    const list = roles.flat();
+    return list.includes(this.currentRole);
   }
 
   generateUniqueId(prefix = 'id') {
@@ -1580,7 +1587,7 @@ class PortalApp {
     }
 
     this.saveState();
-    this.closeModal('modal-edit-school');
+    this.closeModal('modal-edit-school', true);
     this.showToast(`Dados da instituição "${school.nome}" e chave PIX atualizados com sucesso!`, 'success');
     this.render();
   }
@@ -2034,7 +2041,9 @@ class PortalApp {
         } catch (e) {}
       }
 
-      this.closeModal('modal-user');
+      const userForm = document.querySelector('#modal-user form');
+      if (userForm) userForm.dataset.dirty = 'false';
+      this.closeModal('modal-user', true);
       this.showToast(`Dados do usuário "${nome}" atualizados com sucesso!`, 'success');
       this.render();
 
@@ -2105,7 +2114,12 @@ class PortalApp {
       // Criação no Firebase Authentication
       this.createUserInFirebaseAuth(newUser.email, newUser.password);
 
-      this.closeModal('modal-user');
+      const userForm = document.querySelector('#modal-user form');
+      if (userForm) {
+        userForm.dataset.dirty = 'false';
+        userForm.reset();
+      }
+      this.closeModal('modal-user', true);
 
       const roleNames = {
         aluno: 'Aluno(a)',
@@ -2322,7 +2336,7 @@ class PortalApp {
         this.state.courses[courseIndex].atualizadoEm = new Date().toISOString();
 
         this.saveState();
-        this.closeModal('modal-course');
+        this.closeModal('modal-course', true);
         this.showToast(`Curso "${name}" atualizado com sucesso!`, 'success');
         this.render();
       } else {
@@ -2345,7 +2359,7 @@ class PortalApp {
 
       this.state.courses.push(newCourse);
       this.saveState();
-      this.closeModal('modal-course');
+      this.closeModal('modal-course', true);
       this.showToast(`Curso "${name}" criado com sucesso!`, 'success');
       this.render();
     }
@@ -2517,7 +2531,7 @@ class PortalApp {
         this.state.disciplines[discIndex].atualizadoEm = new Date().toISOString();
 
         this.saveState();
-        this.closeModal('modal-discipline');
+        this.closeModal('modal-discipline', true);
         this.showToast(`Disciplina "${name}" atualizada com sucesso!`, 'success');
         this.render();
       } else {
@@ -2538,7 +2552,7 @@ class PortalApp {
 
       this.state.disciplines.push(newDisc);
       this.saveState();
-      this.closeModal('modal-discipline');
+      this.closeModal('modal-discipline', true);
       this.showToast(`Disciplina "${name}" cadastrada com sucesso!`, 'success');
       this.render();
     }
@@ -3039,7 +3053,7 @@ class PortalApp {
         turma.atualizadoEm = new Date().toISOString();
 
         this.saveState();
-        this.closeModal('modal-class');
+        this.closeModal('modal-class', true);
         this.showToast(`Turma "${nome}" atualizada com sucesso!`, 'success');
         this.render();
       } else {
@@ -3082,7 +3096,7 @@ class PortalApp {
 
       this.state.classes.push(newTurma);
       this.saveState();
-      this.closeModal('modal-class');
+      this.closeModal('modal-class', true);
       
       const discCountMsg = initialDisciplines.length > 0 ? ' com 1 disciplina vinculada' : '';
       this.showToast(`Turma "${nome}" criada com sucesso${discCountMsg}! ${studentsInCourse.length} aluno(s) enturmado(s).`, 'success');
@@ -6895,6 +6909,9 @@ class PortalApp {
         if (!confirmDiscard) return false;
         dirtyForm.dataset.dirty = 'false';
       }
+    } else {
+      const forms = modal.querySelectorAll('form');
+      forms.forEach(f => { f.dataset.dirty = 'false'; });
     }
 
     modal.classList.remove('open');
@@ -6992,6 +7009,7 @@ class PortalApp {
     const quickActions = [
       { id: 'act-new-lesson', title: 'Cadastrar Nova Aula no Diário', subtitle: 'Lançar data, conteúdo e chamada', icon: 'fa-plus-circle', roles: ['gestao', 'professor'] },
       { id: 'act-new-user', title: 'Matricular Novo Estudante / Usuário', subtitle: 'Gera RA automático para a instituição', icon: 'fa-user-plus', roles: ['gestao', 'secretaria'] },
+      { id: 'act-change-password', title: 'Alterar Minha Senha de Acesso', subtitle: 'Trocar senha atual por uma nova com confirmação', icon: 'fa-key' },
       { id: 'act-toggle-theme', title: 'Alternar Tema Claro / Escuro', subtitle: 'Mudar a paleta de cores da interface', icon: 'fa-moon' },
       { id: 'act-switch-school', title: 'Trocar Instituição Ativa', subtitle: 'Alternar polo ou filial conectada', icon: 'fa-arrows-rotate' }
     ];
@@ -7149,6 +7167,8 @@ class PortalApp {
       setTimeout(() => this.openAddUserModal(), 200);
     } else if (actionId === 'act-toggle-theme') {
       this.toggleTheme();
+    } else if (actionId === 'act-change-password') {
+      this.openChangePasswordModal();
     } else if (actionId === 'act-switch-school') {
       this.openSchoolModal();
     }
@@ -7386,6 +7406,123 @@ class PortalApp {
     if (icon) {
       icon.className = isPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
     }
+  }
+
+  openChangePasswordModal() {
+    const modal = document.getElementById('modal-change-password');
+    if (!modal) return;
+
+    const form = modal.querySelector('form');
+    if (form) {
+      form.reset();
+      form.dataset.dirty = 'false';
+    }
+
+    // Redefinir tipos de campo para senha (oculto)
+    ['change-pass-current', 'change-pass-new', 'change-pass-confirm'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.type = 'password';
+      const btn = input ? input.parentElement.querySelector('.btn-toggle-pass') : null;
+      if (btn) {
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fa-regular fa-eye';
+      }
+    });
+
+    modal.classList.add('open');
+    const firstInput = document.getElementById('change-pass-current');
+    if (firstInput) setTimeout(() => firstInput.focus(), 60);
+  }
+
+  async handleChangePasswordSubmit(e) {
+    e.preventDefault();
+    if (!this.currentUser) {
+      this.showToast('Nenhum usuário autenticado no momento.', 'warning');
+      return;
+    }
+
+    const currentPassInput = document.getElementById('change-pass-current');
+    const newPassInput = document.getElementById('change-pass-new');
+    const confirmPassInput = document.getElementById('change-pass-confirm');
+
+    const currentPass = currentPassInput ? currentPassInput.value : '';
+    const newPass = newPassInput ? newPassInput.value : '';
+    const confirmPass = confirmPassInput ? confirmPassInput.value : '';
+
+    const expectedCurrentPass = this.currentUser.password || '123456';
+
+    if (!currentPass) {
+      this.showToast('Por favor, informe sua senha atual.', 'warning');
+      if (currentPassInput) currentPassInput.focus();
+      return;
+    }
+
+    if (currentPass !== expectedCurrentPass) {
+      this.showToast('A senha atual digitada está incorreta.', 'error', 'Senha Incorreta');
+      if (currentPassInput) {
+        currentPassInput.focus();
+        currentPassInput.select();
+      }
+      return;
+    }
+
+    if (!newPass || newPass.length < 6) {
+      this.showToast('A nova senha deve possuir no mínimo 6 caracteres.', 'warning', 'Senha Muito Curta');
+      if (newPassInput) newPassInput.focus();
+      return;
+    }
+
+    if (newPass === currentPass) {
+      this.showToast('A nova senha deve ser diferente da sua senha atual.', 'warning', 'Mesma Senha');
+      if (newPassInput) newPassInput.focus();
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      this.showToast('A confirmação não confere com a nova senha digitada.', 'warning', 'Senhas Diferentes');
+      if (confirmPassInput) {
+        confirmPassInput.focus();
+        confirmPassInput.select();
+      }
+      return;
+    }
+
+    // 1. Atualizar credencial do usuário em sessão
+    const updatedTimestamp = new Date().toISOString();
+    this.currentUser.password = newPass;
+    this.currentUser.atualizadoEm = updatedTimestamp;
+
+    // 2. Atualizar no array local de usuários
+    if (this.state.users && Array.isArray(this.state.users)) {
+      const userInList = this.state.users.find(u => u.id === this.currentUser.id);
+      if (userInList) {
+        userInList.password = newPass;
+        userInList.atualizadoEm = updatedTimestamp;
+      }
+    }
+
+    // 3. Persistir no localStorage
+    localStorage.setItem('portal_current_user', JSON.stringify(this.currentUser));
+    this.saveState();
+
+    // 4. Sincronizar no Firestore se habilitado
+    if (this.isFirebaseActive && this.db && this.currentUser.id) {
+      try {
+        setDoc(doc(this.db, 'usuarios', this.currentUser.id), {
+          password: newPass,
+          atualizadoEm: updatedTimestamp
+        }, { merge: true }).catch(err => console.warn('Aviso Firestore ao persistir nova senha:', err));
+      } catch (err) {}
+    }
+
+    const form = e.target;
+    if (form) {
+      form.dataset.dirty = 'false';
+      form.reset();
+    }
+
+    this.closeModal('modal-change-password', true);
+    this.showToast('Sua senha foi alterada com sucesso!', 'success', 'Senha Atualizada');
   }
 
   async fetchSchoolDataFromFirestore(schoolId) {

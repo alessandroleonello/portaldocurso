@@ -201,26 +201,77 @@ export class FirebaseService {
         lessons: [],
         attendance: {},
         evaluations: [],
+        financial: [],
+        schedules: [],
+        curriculumGrid: [],
         notices: [],
+        bibliographies: [],
+        issuedDocuments: [],
         users: []
       };
 
-      // 1. Tentar ler escola
-      const schoolSnap = await getDoc(doc(this.db, 'escolas', schoolId));
-      if (schoolSnap.exists()) {
-        result.school = schoolSnap.data();
+      // 1. Tentar ler dados consolidados em 'portal_data/{schoolId}' (garantia entre computadores)
+      try {
+        const portalDataSnap = await getDoc(doc(this.db, 'portal_data', schoolId));
+        if (portalDataSnap.exists()) {
+          const pData = portalDataSnap.data();
+          if (pData.schools && Array.isArray(pData.schools)) {
+            const sch = pData.schools.find(s => s.id === schoolId) || pData.schools[0];
+            if (sch) result.school = sch;
+          }
+          if (Array.isArray(pData.courses)) result.courses.push(...pData.courses);
+          if (Array.isArray(pData.disciplines)) result.disciplines.push(...pData.disciplines);
+          if (Array.isArray(pData.classes)) result.classes.push(...pData.classes);
+          if (Array.isArray(pData.lessons)) result.lessons.push(...pData.lessons);
+          if (pData.attendance && typeof pData.attendance === 'object') Object.assign(result.attendance, pData.attendance);
+          if (Array.isArray(pData.evaluations)) result.evaluations.push(...pData.evaluations);
+          if (Array.isArray(pData.financial)) result.financial.push(...pData.financial);
+          if (Array.isArray(pData.schedules)) result.schedules.push(...pData.schedules);
+          if (Array.isArray(pData.curriculumGrid)) result.curriculumGrid.push(...pData.curriculumGrid);
+          if (Array.isArray(pData.notices)) result.notices.push(...pData.notices);
+          if (Array.isArray(pData.bibliographies)) result.bibliographies.push(...pData.bibliographies);
+          if (Array.isArray(pData.issuedDocuments)) result.issuedDocuments.push(...pData.issuedDocuments);
+          if (Array.isArray(pData.users)) result.users.push(...pData.users);
+        }
+      } catch (errPortal) {
+        console.warn('[FirebaseService] Leitura portal_data:', errPortal.message);
       }
 
-      // 2. Tentar ler subcoleções
+      // 2. Tentar ler escola individual em 'escolas/{schoolId}' caso ainda não obtida
+      if (!result.school) {
+        try {
+          const schoolSnap = await getDoc(doc(this.db, 'escolas', schoolId));
+          if (schoolSnap.exists()) {
+            result.school = schoolSnap.data();
+          }
+        } catch (e) {}
+      }
+
+      // 3. Tentar ler subcoleções particionadas (mesclando ou preenchendo o que faltar)
       try {
         const coursesSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'cursos'));
-        coursesSnap.forEach(d => result.courses.push(d.data()));
+        coursesSnap.forEach(d => {
+          const item = d.data();
+          const idx = result.courses.findIndex(ex => ex.id === item.id);
+          if (idx >= 0) result.courses[idx] = item;
+          else result.courses.push(item);
+        });
 
         const discsSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'disciplinas'));
-        discsSnap.forEach(d => result.disciplines.push(d.data()));
+        discsSnap.forEach(d => {
+          const item = d.data();
+          const idx = result.disciplines.findIndex(ex => ex.id === item.id);
+          if (idx >= 0) result.disciplines[idx] = item;
+          else result.disciplines.push(item);
+        });
 
         const classesSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'turmas'));
-        classesSnap.forEach(d => result.classes.push(d.data()));
+        classesSnap.forEach(d => {
+          const item = d.data();
+          const idx = result.classes.findIndex(ex => ex.id === item.id);
+          if (idx >= 0) result.classes[idx] = item;
+          else result.classes.push(item);
+        });
 
         const lessonsSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'aulas'));
         lessonsSnap.forEach(d => {
@@ -229,42 +280,38 @@ export class FirebaseService {
             result.attendance[lData.id] = lData.attendanceData;
             delete lData.attendanceData;
           }
-          result.lessons.push(lData);
+          const idx = result.lessons.findIndex(ex => ex.id === lData.id);
+          if (idx >= 0) result.lessons[idx] = lData;
+          else result.lessons.push(lData);
         });
 
         const evalsSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'avaliacoes'));
-        evalsSnap.forEach(d => result.evaluations.push(d.data()));
+        evalsSnap.forEach(d => {
+          const item = d.data();
+          const idx = result.evaluations.findIndex(ex => ex.id === item.id);
+          if (idx >= 0) result.evaluations[idx] = item;
+          else result.evaluations.push(item);
+        });
 
         const noticesSnap = await getDocs(collection(this.db, 'escolas', schoolId, 'comunicados'));
-        noticesSnap.forEach(d => result.notices.push(d.data()));
+        noticesSnap.forEach(d => {
+          const item = d.data();
+          const idx = result.notices.findIndex(ex => ex.id === item.id);
+          if (idx >= 0) result.notices[idx] = item;
+          else result.notices.push(item);
+        });
       } catch (errSub) {
-        console.log('[FirebaseService] Subcoleções ainda vazias ou sem permissão direta, lendo portal_data:', errSub.message);
+        console.log('[FirebaseService] Subcoleções:', errSub.message);
       }
 
-      // Se as subcoleções estavam vazias, carregar do documento legado consolidado 'portal_data/{schoolId}'
-      if (result.courses.length === 0 && result.classes.length === 0) {
-        const portalDataSnap = await getDoc(doc(this.db, 'portal_data', schoolId));
-        if (portalDataSnap.exists()) {
-          const legacyData = portalDataSnap.data();
-          if (Array.isArray(legacyData.courses)) result.courses = legacyData.courses;
-          if (Array.isArray(legacyData.disciplines)) result.disciplines = legacyData.disciplines;
-          if (Array.isArray(legacyData.classes)) result.classes = legacyData.classes;
-          if (Array.isArray(legacyData.lessons)) result.lessons = legacyData.lessons;
-          if (legacyData.attendance) result.attendance = legacyData.attendance;
-          if (Array.isArray(legacyData.evaluations)) result.evaluations = legacyData.evaluations;
-          if (Array.isArray(legacyData.notices)) result.notices = legacyData.notices;
-          if (Array.isArray(legacyData.users)) result.users = legacyData.users;
-        }
-      }
-
-      // Buscar usuários da escola na coleção 'usuarios'
+      // 4. Buscar todos os usuários vinculados à instituição na coleção de topo 'usuarios'
       try {
         const usersSnap = await getDocs(query(collection(this.db, 'usuarios'), where('schoolId', '==', schoolId)));
         usersSnap.forEach(d => {
           const u = d.data();
-          if (!result.users.some(ex => ex.id === u.id)) {
-            result.users.push(u);
-          }
+          const idx = result.users.findIndex(ex => ex.id === u.id);
+          if (idx >= 0) result.users[idx] = u;
+          else result.users.push(u);
         });
       } catch (errU) {
         console.log('[FirebaseService] Leitura query usuários:', errU.message);

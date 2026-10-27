@@ -1196,14 +1196,53 @@ textarea:focus {
   pointer-events: auto;
 }
 
+.sidebar-close-btn {
+  display: none;
+}
+
+.show-mobile-inline {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 35px rgba(0, 0, 0, 0.45);
+    z-index: 1050;
+    width: min(300px, 85vw);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    z-index: 1040;
+  }
+
+  body.sidebar-mobile-open {
+    overflow: hidden !important;
+  }
+
+  .sidebar-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-left: auto;
+    transition: background 0.2s ease;
+  }
+
+  .sidebar-close-btn:active {
+    background: rgba(255, 255, 255, 0.25);
   }
 
   .main-wrapper {
@@ -2112,11 +2151,11 @@ textarea:focus {
   border-radius: 4px;
 }
 
-/* Responsive Breakdown */
+/* Responsive Breakdown - Auth Screen */
 @media (max-width: 960px) {
   .auth-hero-container {
     flex-direction: column;
-    gap: 2.5rem;
+    gap: 2rem;
     align-items: center;
     text-align: center;
   }
@@ -2140,35 +2179,121 @@ textarea:focus {
   }
 
   .auth-hero-3d-img {
-    max-width: 360px;
+    max-width: 320px;
   }
 
   .auth-hero-right {
     max-width: 440px;
+    width: 100%;
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 768px) {
   .auth-page-wrapper {
-    padding: 2rem 1rem;
+    padding: 1.25rem 1rem max(1.5rem, env(safe-area-inset-bottom, 1.5rem)) 1rem;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
   }
 
-  .auth-card-clean {
-    padding: 2rem 1.25rem;
-    border-radius: 20px;
+  /* Oculta a ilustração 3D grande no celular para que o card de login fique imediatamente visível sem rolagem */
+  .auth-hero-media {
+    display: none !important;
   }
 
-  .auth-hero-title {
-    font-size: 1.5rem;
+  .auth-hero-container {
+    gap: 1.25rem;
+    padding: 0.5rem 0 1.25rem 0;
+    width: 100%;
+  }
+
+  .auth-hero-brand {
+    gap: 0.75rem;
   }
 
   .auth-hero-logo-box {
-    width: auto;
-    height: 80px;
+    width: 46px;
+    height: 46px;
   }
 
-  .auth-hero-3d-img {
-    max-width: 280px;
+  .auth-hero-logo {
+    max-height: 46px;
+  }
+
+  .auth-hero-title {
+    font-size: 1.45rem;
+  }
+
+  .auth-hero-pretitle {
+    font-size: 0.8rem;
+  }
+
+  .auth-hero-description {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    margin: 0.35rem auto 0 auto;
+    max-width: 350px;
+  }
+
+  .auth-card-clean {
+    padding: 1.5rem 1.25rem;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+  }
+
+  .auth-card-title {
+    font-size: 1.25rem;
+  }
+
+  .auth-card-subtitle {
+    font-size: 0.82rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .form-control-pill {
+    height: 48px;
+    font-size: 16px !important;
+  }
+
+  .btn-auth-pill {
+    height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .auth-card-lock-badge {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15rem;
+    top: -22px;
+  }
+
+  .auth-scrollable-form {
+    max-height: 60vh;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .login-footer {
+    padding: 10px 14px max(24px, env(safe-area-inset-bottom, 24px)) 14px;
+  }
+
+  .login-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .login-footer-col {
+    gap: 12px;
+  }
+
+  .login-footer-icon-circle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .login-footer-wave {
+    height: 28px;
   }
 }
 
@@ -5913,54 +6038,146 @@ tr.attendance-row-focused {
 }
 
 /* =========================================================================
-   FASE 4: MOBILE BOTTOM NAVIGATION & ENHANCED MOBILE UX
+   SISTEMA DE RESPONSIVIDADE E EXPERIÊNCIA MOBILE DE ALTA FIDELIDADE
+   (Mobile Navigation, Bottom-Sheet Modals, Topbar Compact, Touch Ergonomics)
    ========================================================================= */
+
 .mobile-bottom-nav {
   display: none;
 }
 
 @media (max-width: 768px) {
+  /* 1. Touch & Global Mobile Adjustments */
+  html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Previne zoom automático indesejado no iOS Safari em campos de texto */
+  input, select, textarea, .form-control, .form-control-pill {
+    font-size: 16px !important;
+  }
+
+  /* 2. Topbar Mobile Otimizada */
+  .topbar {
+    height: auto !important;
+    min-height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding: env(safe-area-inset-top, 0px) 0.75rem 0 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .topbar-left {
+    gap: 0.65rem !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .page-title-box {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  .page-title-box h1 {
+    font-size: 1.05rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.25 !important;
+  }
+
+  .page-title-box p,
+  #page-subheading {
+    display: none !important;
+  }
+
+  .topbar-actions {
+    gap: 0.35rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .action-btn-circle {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 0.95rem !important;
+  }
+
+  /* Botão de Sair compacto na topbar mobile */
+  .btn-logout-topbar {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: var(--danger) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+  }
+
+  .btn-logout-topbar:active {
+    background: var(--danger) !important;
+    color: #ffffff !important;
+  }
+
+  /* Dropdown de Notificações adaptado como card flutuante centralizado */
+  .notification-dropdown-menu {
+    position: fixed !important;
+    top: calc(58px + env(safe-area-inset-top, 0px) + 6px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 140px) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3) !important;
+    z-index: 1100 !important;
+  }
+
+  /* 3. Navegação Fixa Inferior (Mobile Bottom Navigation) */
   .mobile-bottom-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 62px;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border-color);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-    z-index: 990;
-    justify-content: space-around;
-    align-items: center;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(58px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    background: var(--bg-card) !important;
+    border-top: 1px solid var(--border-color) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08) !important;
+    z-index: 900 !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-sizing: border-box !important;
   }
 
   .mobile-bottom-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    height: 100%;
-    color: var(--text-muted);
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-decoration: none;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    gap: 3px;
-    transition: color 0.18s ease, transform 0.15s ease;
-    -webkit-tap-highlight-color: transparent;
-    padding: 4px 2px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    height: 100% !important;
+    color: var(--text-muted) !important;
+    font-size: 0.66rem !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    gap: 3px !important;
+    position: relative !important;
+    transition: color 0.18s ease, transform 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+    padding: 3px 2px 5px 2px !important;
   }
 
   .mobile-bottom-nav-item i {
-    font-size: 1.18rem;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.18s ease;
+    font-size: 1.15rem !important;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.18s ease !important;
   }
 
   .mobile-bottom-nav-item:active {
@@ -5968,37 +6185,290 @@ tr.attendance-row-focused {
   }
 
   .mobile-bottom-nav-item.active {
-    color: var(--primary);
+    color: var(--primary) !important;
   }
 
   .mobile-bottom-nav-item.active i {
-    transform: translateY(-2px) scale(1.15);
-    color: var(--primary);
+    transform: translateY(-2px) scale(1.15) !important;
+    color: var(--primary) !important;
   }
 
-  /* Padding extra no rodapé do conteúdo principal para não cobrir itens */
+  .mobile-bottom-nav-item.active::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    width: 22px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--primary);
+  }
+
+  /* Compensação de padding inferior para a área de conteúdo não ser coberta pelo bottom bar */
   .content-area,
   .main-wrapper {
-    padding-bottom: 78px !important;
+    padding: 0.85rem !important;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* Mobile Responsive Tables & Touch Enhancements */
+  /* 4. Cards e Layouts de Conteúdo */
+  .card {
+    padding: 1rem 0.85rem !important;
+    margin-bottom: 0.85rem !important;
+    border-radius: 14px !important;
+  }
+
+  .card-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .card-header > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .card-header .btn {
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+    min-height: 38px !important;
+  }
+
+  .card-title {
+    font-size: 1.05rem !important;
+  }
+
+  /* Grids multi-colunas empilhados em 1 coluna */
+  .grid-4,
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .stat-card {
+    padding: 0.85rem 1rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .stat-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+    font-size: 1.15rem !important;
+  }
+
+  /* 5. Filtros e Barras de Ferramentas Responsivas */
+  .filter-bar,
+  .toolbar-container,
+  .filters-wrapper,
+  .form-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.65rem !important;
+  }
+
+  .form-row > div,
+  .filter-bar > div,
+  .toolbar-container > div {
+    min-width: 100% !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  .filter-bar .btn,
+  .toolbar-container .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 38px !important;
+  }
+
+  /* 6. Tabelas Móveis com Indicador de Deslizamento */
   .table-responsive {
-    -webkit-overflow-scrolling: touch;
-    border-radius: var(--border-radius-sm);
-    margin-bottom: 1rem;
-    border: 1px solid var(--border-color);
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: var(--border-radius-sm) !important;
+    margin-bottom: 0.85rem !important;
+    border: 1px solid var(--border-color) !important;
+    background:
+      linear-gradient(to right, var(--bg-card) 30%, rgba(255, 255, 255, 0)),
+      linear-gradient(to right, rgba(255, 255, 255, 0), var(--bg-card) 70%) 100% 0,
+      radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
   }
 
   .table th,
   .table td {
-    padding: 0.75rem 0.65rem;
-    font-size: 0.82rem;
+    padding: 0.7rem 0.55rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
   }
 
-  .table .btn-sm {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.75rem;
+  .table td .btn-sm {
+    min-height: 34px !important;
+    min-width: 34px !important;
+    padding: 0.35rem 0.6rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* 7. Student CIE Card fluido no celular */
+  .student-card-viewport {
+    perspective: 1000px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    aspect-ratio: 85.6 / 54 !important;
+    height: auto !important;
+    min-height: 200px !important;
+    margin: 0 auto !important;
+  }
+
+  .student-next-class-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .student-option-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .student-disc-detail-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 1rem !important;
+  }
+
+  .student-disc-detail-title-group {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* 8. Toasts flutuantes adaptados ao topo */
+  .toast-container {
+    top: max(0.75rem, env(safe-area-inset-top, 0.75rem)) !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
+/* =========================================================================
+   MODAIS MOBILE EM FORMATO BOTTOM SHEET (Padrão Nativo iOS / Android)
+   ========================================================================= */
+@media (max-width: 640px) {
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88dvh !important;
+    border-radius: 22px 22px 0 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35) !important;
+    animation: modalSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    overflow: hidden !important;
+  }
+
+  @keyframes modalSheetUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0.6;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-card > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .modal-header {
+    flex-shrink: 0 !important;
+    padding: 1.15rem 1.25rem 0.85rem 1.25rem !important;
+    position: relative !important;
+  }
+
+  /* Puxador visual central (Bottom Sheet Handle) */
+  .modal-header::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-color);
+  }
+
+  .modal-title {
+    font-size: 1.05rem !important;
+  }
+
+  .modal-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 1rem 1.25rem !important;
+  }
+
+  .modal-footer {
+    flex-shrink: 0 !important;
+    padding: 0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
+    flex-direction: column-reverse !important;
+    gap: 0.6rem !important;
+    background: var(--bg-card) !important;
+    border-top: 1px solid var(--border-color) !important;
+  }
+
+  .modal-footer .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Command Palette (Spotlight Search) no mobile */
+  .modal-command-palette-overlay {
+    padding-top: max(12px, env(safe-area-inset-top, 12px)) !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .command-palette-box {
+    max-height: calc(100dvh - 30px) !important;
+    border-radius: 16px !important;
+  }
+
+  .command-palette-results {
+    max-height: calc(100dvh - 140px) !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
 

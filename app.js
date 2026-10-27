@@ -188,6 +188,14 @@ class PortalApp {
     this.setupEventListeners();
     this.loadSchoolsFromFirestore();
 
+    // Sincronização em segundo plano da instituição do usuário conectado em outros computadores/celulares
+    const initialSyncSchoolId = (this.currentUser && this.currentUser.schoolId) || this.state.activeSchoolId;
+    if (this.isLoggedIn && initialSyncSchoolId) {
+      this.fetchSchoolDataFromFirestore(initialSyncSchoolId).then(() => {
+        this.render();
+      }).catch(err => console.warn('Aviso na sincronização da instituição:', err));
+    }
+
     // PWA Service Worker Registration & Install Prompt Capture
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -866,6 +874,7 @@ class PortalApp {
     const backdrop = document.getElementById('sidebar-backdrop');
     if (sidebar) sidebar.classList.remove('open');
     if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('sidebar-mobile-open');
 
     // Update active tab buttons
     document.querySelectorAll('.nav-item').forEach(el => {
@@ -946,7 +955,25 @@ class PortalApp {
   }
 
   getActiveSchool() {
-    return this.state.schools.find(s => s.id === this.state.activeSchoolId) || this.state.schools[0];
+    if (!this.state.schools) this.state.schools = [];
+    let school = null;
+    const targetId = this.state.activeSchoolId || (this.currentUser && this.currentUser.schoolId);
+    if (targetId) {
+      school = this.state.schools.find(s => s.id === targetId);
+    }
+    if (!school && this.state.schools.length > 0) {
+      school = this.state.schools[0];
+    }
+    if (!school) {
+      const fallbackId = targetId || 'school-default';
+      const fallbackName = (this.currentUser && (this.currentUser.escola || this.currentUser.schoolName)) || 'Minha Instituição';
+      school = { id: fallbackId, nome: fallbackName };
+      this.state.schools.push(school);
+    }
+    if (!this.state.activeSchoolId && school) {
+      this.state.activeSchoolId = school.id;
+    }
+    return school;
   }
 
   renderSidebarSchool() {
@@ -1477,8 +1504,11 @@ class PortalApp {
     }).join('');
   }
 
-  setActiveSchool(id) {
+  async setActiveSchool(id) {
     this.state.activeSchoolId = id;
+    if (this.isFirebaseActive && this.db && id) {
+      await this.fetchSchoolDataFromFirestore(id);
+    }
     this.saveState();
     this.render();
   }
@@ -1598,7 +1628,7 @@ class PortalApp {
     if (!tbody) return;
 
     const activeSchool = this.getActiveSchool();
-    let users = this.state.users.filter(u => u.schoolId === activeSchool.id);
+    let users = (this.state.users || []).filter(u => !u.schoolId || (activeSchool && u.schoolId === activeSchool.id));
 
     // Ajusta o rótulo do botão de criação de acordo com o perfil logado
     const btnText = document.getElementById('btn-novo-usuario-text');
@@ -1609,7 +1639,7 @@ class PortalApp {
     // Popular o dropdown de cursos do filtro se necessário
     const filterCursoSelect = document.getElementById('users-filter-curso');
     if (filterCursoSelect && filterCursoSelect.options.length <= 1) {
-      const schoolCourses = this.state.courses.filter(c => c.schoolId === activeSchool.id);
+      const schoolCourses = (this.state.courses || []).filter(c => !c.schoolId || (activeSchool && c.schoolId === activeSchool.id));
       const currentVal = filterCursoSelect.value || 'todos';
       filterCursoSelect.innerHTML = `<option value="todos">Todos os Cursos</option><option value="sem_curso">Sem curso vinculado</option>` +
         schoolCourses.map(c => `<option value="${c.id}">${this.escapeHTML(c.code)} - ${this.escapeHTML(c.name)}</option>`).join('');
@@ -2183,7 +2213,7 @@ class PortalApp {
     if (!tbody) return;
 
     const activeSchool = this.getActiveSchool();
-    const courses = this.state.courses.filter(c => c.schoolId === activeSchool.id);
+    const courses = (this.state.courses || []).filter(c => !c.schoolId || (activeSchool && c.schoolId === activeSchool.id));
 
     if (courses.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Nenhum curso cadastrado.</td></tr>`;
@@ -2391,7 +2421,7 @@ class PortalApp {
     if (!tbody) return;
 
     const activeSchool = this.getActiveSchool();
-    const disciplines = this.state.disciplines.filter(d => d.schoolId === activeSchool.id);
+    const disciplines = (this.state.disciplines || []).filter(d => !d.schoolId || (activeSchool && d.schoolId === activeSchool.id));
 
     if (disciplines.length === 0) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Nenhuma disciplina cadastrada.</td></tr>`;
@@ -2586,8 +2616,8 @@ class PortalApp {
     this.syncAllSharedDisciplines();
 
     const activeSchool = this.getActiveSchool();
-    const schoolCourses = this.state.courses.filter(c => c.schoolId === activeSchool.id);
-    const allSchoolTurmas = this.state.classes.filter(t => t.schoolId === activeSchool.id);
+    const schoolCourses = (this.state.courses || []).filter(c => !c.schoolId || (activeSchool && c.schoolId === activeSchool.id));
+    const allSchoolTurmas = (this.state.classes || []).filter(t => !t.schoolId || (activeSchool && t.schoolId === activeSchool.id));
 
     const isProfessor = this.currentRole === 'professor';
     let teacherUser = null;
@@ -6839,15 +6869,128 @@ class PortalApp {
   }
 
   async fetchSchoolDataFromFirestore(schoolId) {
-    if (!this.isFirebaseActive || !this.db || !schoolId) return;
+    if (!this.isFirebaseActive || !this.db || !schoolId) return false;
     try {
-      const updated = await this.firebaseService.fetchSchoolData(schoolId, this.state);
-      if (updated) {
+      const data = await this.firebaseService.fetchSchoolData(schoolId);
+      if (data) {
+        if (data.school) {
+          if (!this.state.schools) this.state.schools = [];
+          const sIdx = this.state.schools.findIndex(s => s.id === data.school.id);
+          if (sIdx >= 0) this.state.schools[sIdx] = data.school;
+          else this.state.schools.push(data.school);
+          this.state.activeSchoolId = data.school.id;
+        }
+        if (Array.isArray(data.courses)) {
+          if (!this.state.courses) this.state.courses = [];
+          data.courses.forEach(c => {
+            const idx = this.state.courses.findIndex(ex => ex.id === c.id);
+            if (idx >= 0) this.state.courses[idx] = c;
+            else this.state.courses.push(c);
+          });
+        }
+        if (Array.isArray(data.disciplines)) {
+          if (!this.state.disciplines) this.state.disciplines = [];
+          data.disciplines.forEach(d => {
+            const idx = this.state.disciplines.findIndex(ex => ex.id === d.id);
+            if (idx >= 0) this.state.disciplines[idx] = d;
+            else this.state.disciplines.push(d);
+          });
+        }
+        if (Array.isArray(data.classes)) {
+          if (!this.state.classes) this.state.classes = [];
+          data.classes.forEach(cl => {
+            const idx = this.state.classes.findIndex(ex => ex.id === cl.id);
+            if (idx >= 0) this.state.classes[idx] = cl;
+            else this.state.classes.push(cl);
+          });
+        }
+        if (Array.isArray(data.users)) {
+          if (!this.state.users) this.state.users = [];
+          data.users.forEach(u => {
+            const idx = this.state.users.findIndex(ex => ex.id === u.id);
+            if (idx >= 0) this.state.users[idx] = u;
+            else this.state.users.push(u);
+          });
+        }
+        if (Array.isArray(data.lessons)) {
+          if (!this.state.lessons) this.state.lessons = [];
+          data.lessons.forEach(l => {
+            const idx = this.state.lessons.findIndex(ex => ex.id === l.id);
+            if (idx >= 0) this.state.lessons[idx] = l;
+            else this.state.lessons.push(l);
+          });
+        }
+        if (data.attendance && typeof data.attendance === 'object') {
+          if (!this.state.attendance) this.state.attendance = {};
+          Object.assign(this.state.attendance, data.attendance);
+        }
+        if (Array.isArray(data.evaluations)) {
+          if (!this.state.evaluations) this.state.evaluations = [];
+          data.evaluations.forEach(ev => {
+            const idx = this.state.evaluations.findIndex(ex => ex.id === ev.id);
+            if (idx >= 0) this.state.evaluations[idx] = ev;
+            else this.state.evaluations.push(ev);
+          });
+        }
+        if (Array.isArray(data.financial)) {
+          if (!this.state.financial) this.state.financial = [];
+          data.financial.forEach(f => {
+            const idx = this.state.financial.findIndex(ex => ex.id === f.id);
+            if (idx >= 0) this.state.financial[idx] = f;
+            else this.state.financial.push(f);
+          });
+        }
+        if (Array.isArray(data.schedules)) {
+          if (!this.state.schedules) this.state.schedules = [];
+          data.schedules.forEach(s => {
+            const idx = this.state.schedules.findIndex(ex => ex.id === s.id);
+            if (idx >= 0) this.state.schedules[idx] = s;
+            else this.state.schedules.push(s);
+          });
+        }
+        if (Array.isArray(data.curriculumGrid)) {
+          if (!this.state.curriculumGrid) this.state.curriculumGrid = [];
+          data.curriculumGrid.forEach(cg => {
+            const idx = this.state.curriculumGrid.findIndex(ex => ex.id === cg.id);
+            if (idx >= 0) this.state.curriculumGrid[idx] = cg;
+            else this.state.curriculumGrid.push(cg);
+          });
+        }
+        if (Array.isArray(data.notices)) {
+          if (!this.state.notices) this.state.notices = [];
+          data.notices.forEach(n => {
+            const idx = this.state.notices.findIndex(ex => ex.id === n.id);
+            if (idx >= 0) this.state.notices[idx] = n;
+            else this.state.notices.push(n);
+          });
+        }
+        if (Array.isArray(data.bibliographies)) {
+          if (!this.state.bibliographies) this.state.bibliographies = [];
+          data.bibliographies.forEach(b => {
+            const idx = this.state.bibliographies.findIndex(ex => ex.id === b.id);
+            if (idx >= 0) this.state.bibliographies[idx] = b;
+            else this.state.bibliographies.push(b);
+          });
+        }
+        if (Array.isArray(data.issuedDocuments)) {
+          if (!this.state.issuedDocuments) this.state.issuedDocuments = [];
+          data.issuedDocuments.forEach(docItem => {
+            const idx = this.state.issuedDocuments.findIndex(ex => ex.id === docItem.id);
+            if (idx >= 0) this.state.issuedDocuments[idx] = docItem;
+            else this.state.issuedDocuments.push(docItem);
+          });
+        }
+
+        if (typeof this.syncAllSharedDisciplines === 'function') {
+          this.syncAllSharedDisciplines();
+        }
         this.saveStateLocally();
+        return true;
       }
     } catch (e) {
       console.warn('Erro ao carregar dados da instituição do Firestore:', e);
     }
+    return false;
   }
 
   async testFirebaseConnection() {
@@ -6861,8 +7004,11 @@ class PortalApp {
     const backdrop = document.getElementById('sidebar-backdrop');
 
     if (isMobile) {
-      if (sidebar) sidebar.classList.toggle('open');
-      if (backdrop) backdrop.classList.toggle('active');
+      if (sidebar) {
+        const isOpen = sidebar.classList.toggle('open');
+        if (backdrop) backdrop.classList.toggle('active', isOpen);
+        document.body.classList.toggle('sidebar-mobile-open', isOpen);
+      }
     } else {
       document.body.classList.toggle('sidebar-collapsed');
     }
@@ -7525,66 +7671,7 @@ class PortalApp {
     this.showToast('Sua senha foi alterada com sucesso!', 'success', 'Senha Atualizada');
   }
 
-  async fetchSchoolDataFromFirestore(schoolId) {
-    if (!this.isFirebaseActive || !this.db || !schoolId) return;
-    try {
-      // 1. Busca o estado consolidado da escola na coleção 'portal_data'
-      const pDoc = await getDoc(doc(this.db, 'portal_data', schoolId));
-      if (pDoc.exists()) {
-        const data = pDoc.data();
-        if (data.schools && Array.isArray(data.schools)) {
-          if (!this.state.schools) this.state.schools = [];
-          data.schools.forEach(s => {
-            if (!this.state.schools.some(ex => ex.id === s.id)) this.state.schools.push(s);
-          });
-        }
-        if (data.courses && Array.isArray(data.courses)) {
-          if (!this.state.courses) this.state.courses = [];
-          data.courses.forEach(c => {
-            if (!this.state.courses.some(ex => ex.id === c.id)) this.state.courses.push(c);
-          });
-        }
-        if (data.disciplines && Array.isArray(data.disciplines)) {
-          if (!this.state.disciplines) this.state.disciplines = [];
-          data.disciplines.forEach(d => {
-            if (!this.state.disciplines.some(ex => ex.id === d.id)) this.state.disciplines.push(d);
-          });
-        }
-        if (data.classes && Array.isArray(data.classes)) {
-          if (!this.state.classes) this.state.classes = [];
-          data.classes.forEach(cl => {
-            if (!this.state.classes.some(ex => ex.id === cl.id)) this.state.classes.push(cl);
-          });
-        }
-        if (data.users && Array.isArray(data.users)) {
-          if (!this.state.users) this.state.users = [];
-          data.users.forEach(u => {
-            const idx = this.state.users.findIndex(ex => ex.id === u.id);
-            if (idx >= 0) this.state.users[idx] = u;
-            else this.state.users.push(u);
-          });
-        }
-        this.saveStateLocally();
-      } else {
-        // Tenta na coleção 'escolas'
-        const eDoc = await getDoc(doc(this.db, 'escolas', schoolId));
-        if (eDoc.exists()) {
-          const sch = eDoc.data();
-          if (!this.state.schools) this.state.schools = [];
-          if (!this.state.schools.some(ex => ex.id === sch.id)) this.state.schools.push(sch);
-          this.saveStateLocally();
-        }
-      }
-    } catch (e) {
-      console.warn('Erro ao carregar dados da instituição do Firestore:', e);
-    }
-  }
 
-  saveStateLocally() {
-    try {
-      localStorage.setItem('portal_do_curso_data', JSON.stringify(this.state));
-    } catch (e) {}
-  }
 
   async handleLoginSubmit(e) {
     e.preventDefault();
@@ -7603,17 +7690,12 @@ class PortalApp {
       return;
     }
 
-    // 1. Busca primeiro no estado local (offline-first / cache do navegador)
-    let matchingUsers = this.findUsersByIdentifier(identifier);
-
-    // 2. Se não encontrar no navegador (ex: aluno acessando de outro computador/celular), consulta o Firestore
-    if (matchingUsers.length === 0 && this.isFirebaseActive && this.db) {
+    // 1. Se estiver online com Firebase, consulta Firestore para garantir que temos os dados de autenticação e da instituição mais recentes
+    if (this.isFirebaseActive && this.db) {
       try {
-        // Busca na coleção 'usuarios' por e-mail
         const qEmail = query(collection(this.db, 'usuarios'), where('email', '==', identifier));
         let snap = await getDocs(qEmail);
 
-        // Se não encontrou por e-mail, busca por RA
         if (snap.empty) {
           const qRa = query(collection(this.db, 'usuarios'), where('ra', '==', identifier));
           snap = await getDocs(qRa);
@@ -7630,17 +7712,18 @@ class PortalApp {
               this.state.users.push(remoteUser);
             }
 
-            // Carrega os dados da escola vinculada do Firestore
             if (remoteUser.schoolId) {
               await this.fetchSchoolDataFromFirestore(remoteUser.schoolId);
             }
           }
-          matchingUsers = this.findUsersByIdentifier(identifier);
         }
       } catch (err) {
         console.warn('Consulta ao Firestore durante o login:', err);
       }
     }
+
+    // 2. Busca no estado local consolidado
+    let matchingUsers = this.findUsersByIdentifier(identifier);
 
     // Validação de credenciais: verificar se a senha confere
     const validUsers = matchingUsers.filter(u => !u.password || u.password === password);
@@ -7658,7 +7741,15 @@ class PortalApp {
 
     // Apenas 1 instituição vinculada
     const user = validUsers[0];
-    const school = this.state.schools ? this.state.schools.find(s => s.id === user.schoolId) : null;
+    if (user.schoolId) {
+      this.state.activeSchoolId = user.schoolId;
+      // Garante sincronização completa da escola e coleções associadas em novo dispositivo
+      if (this.isFirebaseActive && this.db) {
+        await this.fetchSchoolDataFromFirestore(user.schoolId);
+      }
+    }
+
+    const school = this.getActiveSchool();
     if (school) {
       this.state.activeSchoolId = school.id;
     }
@@ -7711,11 +7802,18 @@ class PortalApp {
     document.getElementById('modal-switch-school').classList.add('open');
   }
 
-  selectSchoolAndLogin(userId) {
+  async selectSchoolAndLogin(userId) {
     const user = this.state.users.find(u => u.id === userId);
     if (!user) return;
 
-    const school = this.state.schools.find(s => s.id === user.schoolId);
+    if (user.schoolId) {
+      this.state.activeSchoolId = user.schoolId;
+      if (this.isFirebaseActive && this.db) {
+        await this.fetchSchoolDataFromFirestore(user.schoolId);
+      }
+    }
+
+    const school = this.getActiveSchool();
     if (school) {
       this.state.activeSchoolId = school.id;
     }

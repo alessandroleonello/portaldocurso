@@ -6155,7 +6155,7 @@ tr.attendance-row-focused {
   }
 
   .mobile-bottom-nav-item {
-    display: flex !important;
+    display: flex;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
@@ -6173,6 +6173,39 @@ tr.attendance-row-focused {
     transition: color 0.18s ease, transform 0.15s ease !important;
     -webkit-tap-highlight-color: transparent !important;
     padding: 3px 2px 5px 2px !important;
+  }
+
+  /* Ocultação estrita por papel de usuário (impede duplicação de itens de diferentes perfis na barra) */
+  .mobile-bottom-nav-item.role-access-aluno,
+  .mobile-bottom-nav-item.role-access-professor,
+  .mobile-bottom-nav-item.role-access-gestao,
+  .mobile-bottom-nav-item.role-access-secretaria {
+    display: none !important;
+  }
+
+  body[data-user-role="aluno"] .mobile-bottom-nav-item.role-access-aluno {
+    display: flex !important;
+  }
+
+  body[data-user-role="professor"] .mobile-bottom-nav-item.role-access-professor {
+    display: flex !important;
+  }
+
+  body[data-user-role="gestao"] .mobile-bottom-nav-item.role-access-gestao {
+    display: flex !important;
+  }
+
+  body[data-user-role="secretaria"] .mobile-bottom-nav-item.role-access-secretaria {
+    display: flex !important;
+  }
+
+  /* Botão de abrir menu completo sempre visível */
+  .mobile-bottom-nav-item:not(.nav-item) {
+    display: flex !important;
+  }
+
+  .mobile-bottom-nav-item[style*="display: none"] {
+    display: none !important;
   }
 
   .mobile-bottom-nav-item i {

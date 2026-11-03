@@ -88,6 +88,26 @@ export class PdfService {
   }
 
   /**
+   * Garante o carregamento do html2canvas para renderização de alta precisão
+   */
+  async ensureHtml2Canvas() {
+    if (window.html2canvas) return true;
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'src/services/html2canvas.min.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        const cdn = document.createElement('script');
+        cdn.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        cdn.onload = () => resolve(true);
+        cdn.onerror = () => resolve(false);
+        document.head.appendChild(cdn);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
    * Instancia um novo documento jsPDF no padrão A4 configurado com overlay de carregamento automático
    */
   async createPdfDoc(orientation = 'portrait', message = 'Gerando Documento Oficial em PDF...') {
@@ -430,9 +450,9 @@ export class PdfService {
           y: marginVal,
           width: printWidth,
           windowWidth: containerWidth,
-          autoPaging: 'text',
+          autoPaging: 'slice',
           html2canvas: {
-            scale: 1,
+            scale: 2,
             useCORS: true,
             allowTaint: true,
             logging: false
@@ -470,13 +490,13 @@ export class PdfService {
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = orientation === 'landscape' ? '1123px' : '794px';
+    iframe.style.height = orientation === 'landscape' ? '794px' : '1123px';
     iframe.style.border = 'none';
     iframe.style.zIndex = '-9999';
-    iframe.style.opacity = '0.01';
+    iframe.style.opacity = '0';
     iframe.style.pointerEvents = 'none';
     document.body.appendChild(iframe);
 
@@ -490,21 +510,22 @@ export class PdfService {
         <title>${this.app.escapeHTML(options.title || 'Impressão Oficial')}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
           @page {
             size: A4 ${orientation};
-            margin: 10mm;
+            margin: 8mm 6mm;
           }
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
+          html, body {
             background: #ffffff !important;
             color: #0f172a !important;
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 9.5pt;
             line-height: 1.45;
             padding: 0 !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             width: 100% !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -520,14 +541,32 @@ export class PdfService {
         </style>
       </head>
       <body>
-        ${htmlBody}
+        <div style="padding: 4mm 6mm; box-sizing: border-box; width: 100%;">
+          ${htmlBody}
+        </div>
       </body>
       </html>
     `);
     idoc.close();
 
-    const doPrint = () => {
+    const doPrint = async () => {
       try {
+        const images = Array.from(idoc.images || []);
+        if (images.length > 0) {
+          await Promise.all(images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+              img.onload = resolve;
+              img.onerror = resolve;
+              setTimeout(resolve, 1500);
+            });
+          }));
+        }
+        if (idoc.fonts && idoc.fonts.ready) {
+          await idoc.fonts.ready;
+        }
+        await new Promise(r => setTimeout(r, 200));
+
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
       } catch (e) {
@@ -537,9 +576,9 @@ export class PdfService {
     };
 
     if (idoc.readyState === 'complete') {
-      setTimeout(doPrint, 350);
+      setTimeout(doPrint, 250);
     } else {
-      iframe.onload = () => setTimeout(doPrint, 350);
+      iframe.onload = () => setTimeout(doPrint, 250);
     }
 
     const cleanup = () => {
@@ -562,6 +601,8 @@ export class PdfService {
         height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .student-card-flipper {
         transform: none !important;
@@ -570,16 +611,18 @@ export class PdfService {
         width: auto !important;
         height: auto !important;
         box-shadow: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .student-card-face {
         width: 85.6mm !important;
-        height: 54mm !important;
+        height: 54.0mm !important;
         min-width: 85.6mm !important;
-        min-height: 54mm !important;
+        min-height: 54.0mm !important;
         max-width: 85.6mm !important;
-        max-height: 54mm !important;
+        max-height: 54.0mm !important;
         border-radius: 3.2mm !important;
-        padding: 2.2mm 3.2mm !important;
+        padding: 2.2mm 3mm !important;
         box-sizing: border-box !important;
         position: relative !important;
         top: auto !important;
@@ -597,6 +640,7 @@ export class PdfService {
         backface-visibility: visible !important;
         -webkit-backface-visibility: visible !important;
         page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .student-card-front {
         background: linear-gradient(135deg, #0f2b48 0%, #1e4d77 60%, #2563eb 100%) !important;
@@ -624,44 +668,291 @@ export class PdfService {
         backface-visibility: visible !important;
         -webkit-backface-visibility: visible !important;
       }
-      .sc-header { display: flex !important; justify-content: space-between !important; align-items: center !important; border-bottom: 0.5px solid rgba(255,255,255,0.3) !important; padding-bottom: 1.2mm !important; }
-      .sc-header-brand { display: flex !important; align-items: center !important; gap: 2mm !important; }
-      .sc-header-text { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
-      .sc-logo-mini { width: 5.5mm !important; height: 5.5mm !important; background: rgba(255,255,255,0.2) !important; border-radius: 1.2mm !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 6pt !important; color: #fff !important; flex-shrink: 0 !important; }
-      .sc-school-name { font-family: 'Outfit', sans-serif !important; font-size: 6.2pt !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 0.02em !important; color: #fff !important; max-width: 48mm !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-      .sc-doc-type { font-size: 4.2pt !important; color: #93c5fd !important; font-weight: 600 !important; letter-spacing: 0.04em !important; }
+      .sc-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        border-bottom: 0.4px solid rgba(255,255,255,0.3) !important;
+        padding-bottom: 0.8mm !important;
+      }
+      .sc-header-brand {
+        display: flex !important;
+        align-items: center !important;
+        gap: 1.8mm !important;
+      }
+      .sc-header-text {
+        display: flex !important;
+        flex-direction: column !important;
+        min-width: 0 !important;
+      }
+      .sc-logo-mini {
+        width: 5.5mm !important;
+        height: 5.5mm !important;
+        background: rgba(255,255,255,0.2) !important;
+        border-radius: 1.2mm !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 6pt !important;
+        color: #fff !important;
+        flex-shrink: 0 !important;
+      }
+      .sc-school-name {
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 6.2pt !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.02em !important;
+        color: #fff !important;
+        max-width: 48mm !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        line-height: 1.1 !important;
+      }
+      .sc-doc-type {
+        font-size: 3.8pt !important;
+        color: #93c5fd !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.04em !important;
+        line-height: 1.1 !important;
+      }
       .sc-chip-hologram { flex-shrink: 0 !important; }
-      .sc-smart-chip { width: 8.5mm !important; height: 6mm !important; background: linear-gradient(135deg, #d4af37 0%, #f6e05e 50%, #b7791f 100%) !important; border-radius: 1.2mm !important; position: relative !important; border: 0.4px solid #ecc94b !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .sc-smart-chip .chip-line:first-child { position: absolute !important; top: 50% !important; left: 0 !important; right: 0 !important; height: 0.3px !important; background: rgba(0,0,0,0.3) !important; }
-      .sc-smart-chip .chip-line:last-child { position: absolute !important; top: 0 !important; bottom: 0 !important; left: 50% !important; width: 0.3px !important; background: rgba(0,0,0,0.3) !important; }
-      .sc-body { display: flex !important; gap: 2.5mm !important; align-items: center !important; margin: 1mm 0 !important; flex: 1 !important; min-height: 0 !important; }
-      .sc-photo-box { width: 17mm !important; min-width: 17mm !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 0.8mm !important; flex-shrink: 0 !important; }
-      .sc-photo { width: 17mm !important; height: 21mm !important; border-radius: 1.8mm !important; border: 0.8px solid rgba(255,255,255,0.7) !important; overflow: hidden !important; background: #1e293b !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8pt !important; font-weight: 800 !important; color: #93c5fd !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .sc-photo img, .sc-photo-img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-      .sc-info-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0.8mm 1.5mm !important; flex: 1 !important; min-width: 0 !important; }
-      .sc-field { display: flex !important; flex-direction: column !important; min-width: 0 !important; }
-      .sc-field.sc-full { grid-column: span 2 !important; }
-      .sc-label { font-size: 4.2pt !important; text-transform: uppercase !important; color: #93c5fd !important; font-weight: 700 !important; letter-spacing: 0.02em !important; }
-      .sc-value { font-size: 5.6pt !important; color: #ffffff !important; font-weight: 600 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; }
-      .sc-name-value { font-size: 6.5pt !important; font-weight: 800 !important; color: #ffffff !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-      .sc-highlight { color: #fbbf24 !important; font-weight: 800 !important; font-family: 'JetBrains Mono', monospace !important; }
-      .sc-status-pill { background: rgba(16,185,129,0.25) !important; border: 0.5px solid #10b981 !important; color: #34d399 !important; font-size: 4pt !important; font-weight: 800 !important; padding: 0.3mm 1.2mm !important; border-radius: 9999px !important; white-space: nowrap !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .sc-footer { display: flex !important; justify-content: space-between !important; align-items: center !important; border-top: 0.5px solid rgba(255,255,255,0.25) !important; padding-top: 1mm !important; font-size: 4.8pt !important; color: #cbd5e1 !important; }
-      .sc-footer-tag { font-weight: 700 !important; color: #93c5fd !important; }
-      .sc-validade strong { color: #34d399 !important; font-weight: 800 !important; }
-      .sc-verso-header { border-bottom: 0.5px solid rgba(255,255,255,0.2) !important; padding-bottom: 1mm !important; }
-      .sc-verso-school { font-family: 'Outfit', sans-serif !important; font-size: 6.2pt !important; font-weight: 800 !important; color: #fff !important; text-transform: uppercase !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-      .sc-verso-meta { font-size: 4.2pt !important; color: #94a3b8 !important; }
-      .sc-verso-body { display: flex !important; align-items: center !important; gap: 2.2mm !important; margin: 1mm 0 !important; flex: 1 !important; min-height: 0 !important; }
-      .sc-qr-box { background: #ffffff !important; padding: 1mm !important; border-radius: 1.5mm !important; flex-shrink: 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; }
-      .sc-qr-img { width: 15mm !important; height: 15mm !important; display: block !important; }
-      .sc-qr-caption { font-size: 3.5pt !important; color: #0f172a !important; font-weight: 700 !important; margin-top: 0.4mm !important; }
-      .sc-verso-details { flex: 1 !important; min-width: 0 !important; text-align: left !important; }
-      .sc-auth-key-box { margin-bottom: 0.8mm !important; }
-      .sc-auth-code { font-family: 'JetBrains Mono', monospace !important; font-size: 4.6pt !important; font-weight: 800 !important; color: #38bdf8 !important; background: rgba(56,189,248,0.15) !important; padding: 0.3mm 1.5mm !important; border-radius: 0.8mm !important; border: 0.3px solid rgba(56,189,248,0.4) !important; display: inline-block !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .sc-legal-text, .sc-verso-legal { font-size: 3.8pt !important; color: #cbd5e1 !important; line-height: 1.25 !important; margin: 0 0 0.8mm 0 !important; }
-      .sc-verso-stamp { font-size: 4.2pt !important; color: #34d399 !important; font-weight: 700 !important; display: flex !important; align-items: center !important; gap: 1mm !important; }
-      .sc-footer-verso { border-top: 0.5px solid rgba(255,255,255,0.2) !important; padding-top: 1mm !important; display: flex !important; justify-content: space-between !important; font-size: 4.5pt !important; color: #94a3b8 !important; }
+      .sc-smart-chip {
+        width: 8mm !important;
+        height: 5.5mm !important;
+        background: linear-gradient(135deg, #d4af37 0%, #f6e05e 50%, #b7791f 100%) !important;
+        border-radius: 1.2mm !important;
+        position: relative !important;
+        border: 0.4px solid #ecc94b !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .sc-smart-chip .chip-line:first-child {
+        position: absolute !important;
+        top: 50% !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 0.3px !important;
+        background: rgba(0,0,0,0.3) !important;
+      }
+      .sc-smart-chip .chip-line:last-child {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 50% !important;
+        width: 0.3px !important;
+        background: rgba(0,0,0,0.3) !important;
+      }
+      .sc-body {
+        display: flex !important;
+        gap: 2.2mm !important;
+        align-items: center !important;
+        margin: 0.8mm 0 !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+      }
+      .sc-photo-box {
+        width: 17mm !important;
+        min-width: 17mm !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.8mm !important;
+        flex-shrink: 0 !important;
+      }
+      .sc-photo {
+        width: 17mm !important;
+        height: 21mm !important;
+        border-radius: 1.8mm !important;
+        border: 0.8px solid rgba(255,255,255,0.7) !important;
+        overflow: hidden !important;
+        background: #1e293b !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 8pt !important;
+        font-weight: 800 !important;
+        color: #93c5fd !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .sc-photo img, .sc-photo-img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+      }
+      .sc-info-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5mm 1.5mm !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+      }
+      .sc-field {
+        display: flex !important;
+        flex-direction: column !important;
+        min-width: 0 !important;
+      }
+      .sc-field.sc-full {
+        grid-column: span 2 !important;
+      }
+      .sc-label {
+        font-size: 3.8pt !important;
+        text-transform: uppercase !important;
+        color: #93c5fd !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.02em !important;
+        line-height: 1 !important;
+        margin-bottom: 0.2mm !important;
+      }
+      .sc-value {
+        font-size: 5.2pt !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      .sc-name-value {
+        font-size: 6.2pt !important;
+        font-weight: 800 !important;
+        color: #ffffff !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      .sc-highlight {
+        color: #fbbf24 !important;
+        font-weight: 800 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+      }
+      .sc-status-pill {
+        background: rgba(16,185,129,0.25) !important;
+        border: 0.4px solid #10b981 !important;
+        color: #34d399 !important;
+        font-size: 3.6pt !important;
+        font-weight: 800 !important;
+        padding: 0.2mm 1mm !important;
+        border-radius: 9999px !important;
+        white-space: nowrap !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .sc-footer {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        border-top: 0.4px solid rgba(255,255,255,0.25) !important;
+        padding-top: 0.8mm !important;
+        font-size: 4.5pt !important;
+        color: #cbd5e1 !important;
+      }
+      .sc-footer-tag {
+        font-weight: 700 !important;
+        color: #93c5fd !important;
+      }
+      .sc-validade strong {
+        color: #34d399 !important;
+        font-weight: 800 !important;
+      }
+      .sc-verso-header {
+        border-bottom: 0.4px solid rgba(255,255,255,0.2) !important;
+        padding-bottom: 0.6mm !important;
+      }
+      .sc-verso-school {
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 6pt !important;
+        font-weight: 800 !important;
+        color: #fff !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        line-height: 1.1 !important;
+      }
+      .sc-verso-meta {
+        font-size: 3.6pt !important;
+        color: #94a3b8 !important;
+        line-height: 1.1 !important;
+      }
+      .sc-verso-body {
+        display: flex !important;
+        align-items: center !important;
+        gap: 2mm !important;
+        margin: 0.6mm 0 !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+      }
+      .sc-qr-box {
+        background: #ffffff !important;
+        padding: 0.8mm !important;
+        border-radius: 1.2mm !important;
+        flex-shrink: 0 !important;
+        text-align: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .sc-qr-img {
+        width: 16mm !important;
+        height: 16mm !important;
+        display: block !important;
+        object-fit: contain !important;
+      }
+      .sc-qr-caption {
+        font-size: 3.2pt !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        margin-top: 0.3mm !important;
+      }
+      .sc-verso-details {
+        flex: 1 !important;
+        min-width: 0 !important;
+        text-align: left !important;
+      }
+      .sc-auth-key-box {
+        margin-bottom: 0.6mm !important;
+      }
+      .sc-auth-code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 4.4pt !important;
+        font-weight: 800 !important;
+        color: #38bdf8 !important;
+        background: rgba(56,189,248,0.15) !important;
+        padding: 0.2mm 1.2mm !important;
+        border-radius: 0.6mm !important;
+        border: 0.3px solid rgba(56,189,248,0.4) !important;
+        display: inline-block !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .sc-legal-text, .sc-verso-legal {
+        font-size: 3.5pt !important;
+        color: #cbd5e1 !important;
+        line-height: 1.2 !important;
+        margin: 0 0 0.5mm 0 !important;
+      }
+      .sc-verso-stamp {
+        font-size: 3.8pt !important;
+        color: #34d399 !important;
+        font-weight: 700 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.6mm !important;
+      }
+      .sc-footer-verso {
+        border-top: 0.4px solid rgba(255,255,255,0.2) !important;
+        padding-top: 0.6mm !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 4.2pt !important;
+        color: #94a3b8 !important;
+      }
     `;
   }
 
@@ -813,53 +1104,346 @@ export class PdfService {
       return null;
     }
 
+    const authCode = document.getElementById('card-auth-code-text')?.textContent?.trim()
+      || document.getElementById('sc-auth-code')?.textContent?.trim()
+      || 'CIE-2026';
+
     return `
-      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 8px; text-align: center; background: #ffffff;">
-        ${this.getInstitutionHeader('Carteira de Identificação Estudantil (CIE)', 'Padrão Oficial ISO/IEC 7810 ID-1 • Meia-Entrada Lei nº 12.933/2013')}
-        <div style="margin-bottom: 12px; font-size: 7.8pt; color: #475569;">
-          Documento emitido oficialmente em tamanho real padrão cartão de bolso (85,6 mm × 54,0 mm).
+      <div style="font-family: 'Plus Jakarta Sans', sans-serif; padding: 0; margin: 0 auto; text-align: center; background: #ffffff; max-width: 185mm; width: 100%;">
+        ${this.getInstitutionHeader('Carteira de Identificação Estudantil (CIE)', 'Padrão Oficial ISO/IEC 7810 ID-1 • Lei Federal nº 12.933/2013')}
+        <div style="margin: 6px 0 10px 0; font-size: 7.5pt; color: #475569; line-height: 1.35;">
+          Documento emitido oficialmente em <strong>tamanho real padrão crachá ID-1 (85,6 mm × 54,0 mm)</strong>.<br>
+          Pronto para impressão em folha A4, recorte e utilização em porta-crachá estudantil.
         </div>
-        <div style="display: flex; justify-content: center; gap: 12mm; flex-wrap: wrap; margin: 12px auto; max-width: 100%;">
-          <div style="border: 0.4mm dashed #64748b; border-radius: 4mm; padding: 2mm; display: inline-block; background: #f8fafc; text-align: left;">
-            <div style="font-size: 5.5pt; font-weight: 700; color: #475569; margin-bottom: 1.5mm; text-transform: uppercase;">
-              ✂ Linha de Recorte • Frente (85,6 mm × 54,0 mm)
+        <div style="display: flex; justify-content: center; align-items: flex-start; gap: 6mm; flex-wrap: nowrap !important; margin: 10px auto; width: 100%; page-break-inside: avoid; break-inside: avoid;">
+          <div style="border: 0.35mm dashed #64748b; border-radius: 3.5mm; padding: 1.2mm; display: inline-block; background: #f8fafc; text-align: left; box-sizing: border-box; flex-shrink: 0; width: 88mm;">
+            <div style="font-size: 5.5pt; font-weight: 700; color: #475569; margin-bottom: 1.2mm; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;">
+              <span>✂ Linha de Recorte</span>
+              <span style="color: #6366f1;">FRENTE (85,6 × 54,0 mm)</span>
             </div>
             ${cardFront.outerHTML}
           </div>
-          <div style="border: 0.4mm dashed #64748b; border-radius: 4mm; padding: 2mm; display: inline-block; background: #f8fafc; text-align: left;">
-            <div style="font-size: 5.5pt; font-weight: 700; color: #475569; margin-bottom: 1.5mm; text-transform: uppercase;">
-              ✂ Linha de Recorte • Verso (85,6 mm × 54,0 mm)
+          <div style="border: 0.35mm dashed #64748b; border-radius: 3.5mm; padding: 1.2mm; display: inline-block; background: #f8fafc; text-align: left; box-sizing: border-box; flex-shrink: 0; width: 88mm;">
+            <div style="font-size: 5.5pt; font-weight: 700; color: #475569; margin-bottom: 1.2mm; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;">
+              <span>✂ Linha de Recorte</span>
+              <span style="color: #6366f1;">VERSO (85,6 × 54,0 mm)</span>
             </div>
             ${cardBack.outerHTML}
           </div>
         </div>
-        <div style="font-size: 6.8pt; color: #64748b; margin-top: 10px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.3;">
-          <strong>Instruções de Impressão:</strong> Na caixa de diálogo de impressão, certifique-se de que a opção de <em>Escala</em> esteja configurada em <strong>100% (Padrão / Tamanho Real)</strong> para garantir as dimensões físicas exatas para crachás e porta-cartões.
+        <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin: 10px auto; max-width: 175mm; text-align: left; font-size: 6.8pt; color: #334155; line-height: 1.45; page-break-inside: avoid; break-inside: avoid;">
+          <div style="font-weight: 800; color: #0f172a; margin-bottom: 2px;">
+            <i class="fa-solid fa-circle-info" style="color: #6366f1;"></i> Instruções de Impressão e Uso Oficial:
+          </div>
+          <div>1. Na janela de impressão, configure o <strong>Destino</strong> como sua impressora física ou <em>"Salvar como PDF"</em>.</div>
+          <div>2. Mantenha a <strong>Escala</strong> em <strong>100% (Padrão / Tamanho Real)</strong> para garantir as dimensões exatas de 85,6 mm × 54,0 mm.</div>
+          <div>3. Recorte pelas linhas tracejadas externas e insira a Frente e o Verso juntos no plástico protetor (porta-crachá).</div>
         </div>
-        ${this.getInstitutionFooter(document.getElementById('card-auth-code-text')?.textContent?.trim() || document.getElementById('sc-auth-code')?.textContent?.trim())}
+        ${this.getInstitutionFooter(authCode)}
       </div>
     `;
   }
 
+  /**
+   * Renderiza as duas faces da carteirinha em alta resolução em container isolado
+   * sem interferência de transforms 3D ou CSS global.
+   */
+  async renderStudentCardCanvases() {
+    const school = this.app.getActiveSchool() || { nome: 'Portal do Curso', cnpj: '' };
+    const schoolName = document.getElementById('card-school-name')?.textContent?.trim() || school.nome || 'Portal do Curso';
+    const studentName = document.getElementById('card-student-name')?.textContent?.trim() || 'Estudante';
+    const studentRa = document.getElementById('card-student-ra')?.textContent?.trim() || '2026-0001';
+    const studentCourse = document.getElementById('card-student-course')?.textContent?.trim() || 'Curso Regular';
+    const studentTurma = document.getElementById('card-student-turma')?.textContent?.trim() || 'Turma 2026';
+    const studentCpf = document.getElementById('card-student-cpf')?.textContent?.trim() || '***.***.***-**';
+    const studentRg = document.getElementById('card-student-rg')?.textContent?.trim() || '--';
+    const studentNasc = document.getElementById('card-student-nasc')?.textContent?.trim() || '--/--/----';
+    const studentValidade = document.getElementById('card-student-validade')?.textContent?.trim() || '31/03/2027';
+
+    const avatarEl = document.getElementById('card-student-avatar');
+    const avatarImgSrc = avatarEl?.querySelector('img')?.src || '';
+    const avatarInitials = avatarEl?.textContent?.trim() || studentName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AL';
+
+    const versoSchool = document.getElementById('card-verso-school-name')?.textContent?.trim() || schoolName;
+    const versoCnpj = document.getElementById('card-verso-cnpj')?.textContent?.trim() || school.cnpj || '12.345.678/0001-90';
+    const versoEndereco = document.getElementById('card-verso-endereco')?.textContent?.trim() || school.endereco || 'Secretaria Acadêmica';
+    const qrImgEl = document.getElementById('card-qr-code-img');
+    const qrSrc = qrImgEl?.src || '';
+    const authCode = document.getElementById('card-auth-code-text')?.textContent?.trim() || 'CIE-2026';
+
+    const mount = document.createElement('div');
+    mount.id = 'cie-pdf-render-mount';
+    mount.style.position = 'fixed';
+    mount.style.left = '-9999px';
+    mount.style.top = '0';
+    mount.style.width = '1200px';
+    mount.style.zIndex = '-9999';
+    mount.style.opacity = '1';
+    mount.style.pointerEvents = 'none';
+    mount.style.background = '#ffffff';
+
+    mount.innerHTML = `
+      <div style="display: flex; gap: 20px; padding: 20px; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;">
+        <!-- FRENTE (480px × 303px = proporção exata 85,6 × 54,0 mm) -->
+        <div id="cie-render-front" style="width: 480px; height: 303px; background: linear-gradient(135deg, #0f2b48 0%, #1e4d77 60%, #2563eb 100%); color: #ffffff; border-radius: 18px; padding: 14px 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; box-shadow: none;">
+          
+          <!-- Faixa Superior -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.25); padding-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; border: 1px solid rgba(255,255,255,0.3); flex-shrink: 0;">
+                🎓
+              </div>
+              <div style="display: flex; flex-direction: column; min-width: 0;">
+                <div style="font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 800; text-transform: uppercase; color: #ffffff; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; line-height: 1.2;">
+                  ${this.app.escapeHTML(schoolName)}
+                </div>
+                <div style="font-size: 8px; color: #93c5fd; font-weight: 700; letter-spacing: 0.05em; margin-top: 1px;">
+                  CARTEIRA DE IDENTIFICAÇÃO ESTUDANTIL
+                </div>
+              </div>
+            </div>
+            <!-- Chip Holográfico -->
+            <div style="width: 38px; height: 26px; background: linear-gradient(135deg, #d4af37 0%, #f6e05e 50%, #b7791f 100%); border-radius: 5px; position: relative; border: 1px solid #ecc94b; flex-shrink: 0;">
+              <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0,0,0,0.25);"></div>
+              <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(0,0,0,0.25);"></div>
+            </div>
+          </div>
+
+          <!-- Corpo: Foto e Dados -->
+          <div style="display: flex; gap: 14px; align-items: center; margin: 6px 0; flex: 1;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;">
+              <div style="width: 76px; height: 96px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.7); overflow: hidden; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #93c5fd;">
+                ${avatarImgSrc ? `<img src="${avatarImgSrc}" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;" crossorigin="anonymous">` : avatarInitials}
+              </div>
+              <span style="background: rgba(16,185,129,0.25); border: 1px solid #10b981; color: #34d399; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 9999px; letter-spacing: 0.04em; white-space: nowrap;">
+                ✓ MATRICULADO
+              </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; flex: 1; min-width: 0;">
+              <div style="grid-column: span 2; display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">NOME DO ESTUDANTE</span>
+                <span style="font-size: 13px; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${this.app.escapeHTML(studentName)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">MATRÍCULA / RA</span>
+                <span style="font-size: 10.5px; color: #fbbf24; font-family: 'JetBrains Mono', monospace; font-weight: 800;">${this.app.escapeHTML(studentRa)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">CURSO</span>
+                <span style="font-size: 9.5px; color: #ffffff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.app.escapeHTML(studentCourse)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">TURMA / TURNO</span>
+                <span style="font-size: 9.5px; color: #ffffff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.app.escapeHTML(studentTurma)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">CPF</span>
+                <span style="font-size: 9.5px; color: #ffffff; font-weight: 600;">${this.app.escapeHTML(studentCpf)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">RG</span>
+                <span style="font-size: 9.5px; color: #ffffff; font-weight: 600;">${this.app.escapeHTML(studentRg)}</span>
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 7.5px; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">DATA NASC.</span>
+                <span style="font-size: 9.5px; color: #ffffff; font-weight: 600;">${this.app.escapeHTML(studentNasc)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Faixa Inferior -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 6px; font-size: 9px; color: #cbd5e1;">
+            <span style="font-weight: 700; color: #93c5fd; letter-spacing: 0.04em;">ANO LETIVO 2026</span>
+            <span>VALIDADE: <strong style="color: #34d399; font-weight: 800;">${this.app.escapeHTML(studentValidade)}</strong></span>
+          </div>
+        </div>
+
+        <!-- VERSO (480px × 303px) -->
+        <div id="cie-render-back" style="width: 480px; height: 303px; background: linear-gradient(135deg, #09131f 0%, #111d2e 60%, #1e293b 100%); color: #f1f5f9; border-radius: 18px; padding: 14px 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; box-shadow: none;">
+          
+          <!-- Faixa Superior Verso -->
+          <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px;">
+            <div style="font-family: 'Outfit', sans-serif; font-size: 12.5px; font-weight: 800; color: #ffffff; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">
+              ${this.app.escapeHTML(versoSchool)}
+            </div>
+            <div style="font-size: 8px; color: #94a3b8; margin-top: 2px;">
+              CNPJ: ${this.app.escapeHTML(versoCnpj)} • ${this.app.escapeHTML(versoEndereco)}
+            </div>
+          </div>
+
+          <!-- Corpo Verso: QR Code e Detalhes Legais -->
+          <div style="display: flex; align-items: center; gap: 14px; margin: 6px 0; flex: 1;">
+            <div style="background: #ffffff; padding: 6px; border-radius: 8px; flex-shrink: 0; text-align: center; display: flex; flex-direction: column; align-items: center;">
+              ${qrSrc ? `<img src="${qrSrc}" style="width: 82px; height: 82px; display: block;" crossorigin="anonymous">` : '<div style="width: 82px; height: 82px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b;">QR CODE</div>'}
+              <span style="font-size: 7.5px; color: #0f172a; font-weight: 700; margin-top: 3px;">Aponte a Câmera</span>
+            </div>
+
+            <div style="flex: 1; min-width: 0; text-align: left;">
+              <div style="font-size: 7.5px; color: #93c5fd; font-weight: 700; letter-spacing: 0.03em;">CHAVE CRIPTOGRÁFICA DE VALIDAÇÃO</div>
+              <code style="font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 800; color: #38bdf8; background: rgba(56,189,248,0.15); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.4); display: inline-block; margin: 2px 0 5px;">${this.app.escapeHTML(authCode)}</code>
+              <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.35; margin: 0 0 5px;">
+                Documento oficial de identificação estudantil emitido nos termos da <strong>Lei Federal nº 12.933/2013</strong> e do <strong>Decreto nº 8.537/2015</strong>. Garante direito à Meia-Entrada em cinemas, teatros, eventos culturais e esportivos em território nacional.
+              </p>
+              <div style="font-size: 8.5px; color: #34d399; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                🛡️ Autenticidade Digital Certificada
+              </div>
+            </div>
+          </div>
+
+          <!-- Faixa Inferior Verso -->
+          <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 6px; display: flex; justify-content: space-between; font-size: 8.5px; color: #94a3b8;">
+            <span>VÁLIDO EM TODO O BRASIL</span>
+            <span>PADRÃO OFICIAL CIE 2026</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(mount);
+
+    try {
+      const imgs = Array.from(mount.querySelectorAll('img'));
+      if (imgs.length > 0) {
+        await Promise.all(imgs.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            setTimeout(resolve, 1500);
+          });
+        }));
+      }
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise(r => setTimeout(r, 100));
+
+      const frontEl = mount.querySelector('#cie-render-front');
+      const backEl = mount.querySelector('#cie-render-back');
+
+      const canvasFront = await window.html2canvas(frontEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false
+      });
+
+      const canvasBack = await window.html2canvas(backEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false
+      });
+
+      const imgFront = canvasFront.toDataURL('image/png');
+      const imgBack = canvasBack.toDataURL('image/png');
+
+      return { imgFront, imgBack, authCode };
+    } finally {
+      if (mount && mount.parentNode) {
+        mount.parentNode.removeChild(mount);
+      }
+    }
+  }
+
+  /**
+   * Exporta a Carteirinha Estudantil Digital (CIE) em tamanho real ID-1 oficial
+   * com posicionamento vetorial milimétrico sem cortes ou quebras de página.
+   */
   async exportStudentCard() {
-    const contentHtml = this.getStudentCardHtml();
-    if (!contentHtml) {
-      this.app.showToast('Carteirinha não encontrada para exportar.', 'warning');
+    if (this.isGenerating) {
+      this.app.showToast('Já existe um PDF sendo processado. Aguarde um instante.', 'info');
       return;
     }
 
-    const studentName = document.getElementById('card-student-name')?.textContent?.trim() 
-      || document.getElementById('sc-student-name')?.textContent?.trim() 
-      || 'Estudante';
-    const studentRa = document.getElementById('card-student-ra')?.textContent?.trim() 
-      || document.getElementById('sc-student-ra')?.textContent?.trim() 
-      || 'RA';
-    const filename = `Carteirinha_Estudantil_${studentName}_${studentRa}`;
+    try {
+      this.isGenerating = true;
+      this.showLoadingOverlay('Gerando Carteirinha Oficial (CIE)...', 'Formatando dimensões reais ID-1 (85,6 mm × 54,0 mm) em alta resolução.');
 
-    await this.exportToPDF(contentHtml, filename, {
-      orientation: 'portrait',
-      margin: [10, 10, 10, 10]
-    });
+      await this.ensureJsPdf();
+      await this.ensureHtml2Canvas();
+
+      const studentName = document.getElementById('card-student-name')?.textContent?.trim()
+        || document.getElementById('sc-student-name')?.textContent?.trim()
+        || 'Estudante';
+      const studentRa = document.getElementById('card-student-ra')?.textContent?.trim()
+        || document.getElementById('sc-student-ra')?.textContent?.trim()
+        || 'RA';
+      const filename = `Carteirinha_Estudantil_${studentName}_${studentRa}`;
+
+      const { imgFront, imgBack, authCode } = await this.renderStudentCardCanvases();
+
+      const doc = await this.createPdfDoc('portrait');
+      const startY = this.drawInstitutionalHeader(
+        doc,
+        'Carteira de Identificação Estudantil (CIE)',
+        'Padrão Oficial ISO/IEC 7810 ID-1 • Meia-Entrada Lei nº 12.933/2013',
+        'portrait'
+      );
+
+      // Subtítulo
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Documento oficial emitido em tamanho real padrão crachá ID-1 (85,6 mm × 54,0 mm) para impressão e recorte.', 105, startY + 5, { align: 'center' });
+
+      const yCards = startY + 16;
+      const xFront = 16.4;
+      const xBack = 108.0;
+
+      // Textos de recorte
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(71, 85, 105);
+      doc.text('✂ LINHA DE RECORTE • FRENTE (85,6 mm × 54,0 mm)', xFront, yCards - 2.5);
+      doc.text('✂ LINHA DE RECORTE • VERSO (85,6 mm × 54,0 mm)', xBack, yCards - 2.5);
+
+      // Moldura tracejada de corte
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.35);
+      doc.setLineDashPattern([2, 1.5], 0);
+      doc.roundedRect(xFront - 0.8, yCards - 0.8, 85.6 + 1.6, 54.0 + 1.6, 2.5, 2.5, 'S');
+      doc.roundedRect(xBack - 0.8, yCards - 0.8, 85.6 + 1.6, 54.0 + 1.6, 2.5, 2.5, 'S');
+      doc.setLineDashPattern([], 0);
+
+      // Inserção das Imagens em Alta Definição
+      doc.addImage(imgFront, 'PNG', xFront, yCards, 85.6, 54.0);
+      doc.addImage(imgBack, 'PNG', xBack, yCards, 85.6, 54.0);
+
+      // Box de Instruções
+      const boxY = yCards + 54.0 + 10;
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(16.4, boxY, 177.2, 26, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.8);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Instruções para Impressão, Recorte e Utilização:', 22, boxY + 6);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.0);
+      doc.setTextColor(71, 85, 105);
+      doc.text('1. Imprima este arquivo em folha A4 comum, papel fotográfico ou couchê mantendo a Escala em 100% (Tamanho Real).', 22, boxY + 11.5);
+      doc.text('2. Recorte a Frente e o Verso exatamente pelas linhas tracejadas externas de 85,6 mm × 54,0 mm (padrão oficial crachá ID-1).', 22, boxY + 16.5);
+      doc.text('3. Junte a Frente e o Verso dentro do plástico protetor (porta-crachá estudantil) ou faça a laminação do documento.', 22, boxY + 21.5);
+
+      this.drawInstitutionalFooter(doc, 'portrait', authCode);
+      doc.save(this.sanitizeFilename(filename));
+      this.app.showToast(`Carteirinha "${this.sanitizeFilename(filename)}" gerada com sucesso!`, 'success', 'PDF Gerado');
+    } catch (err) {
+      console.error('[PdfService] Erro ao exportar carteirinha estudantil:', err);
+      this.app.showToast('Erro ao processar PDF direto. Abrindo janela de impressão alternativa.', 'warning');
+      this.printStudentCardDirect();
+    } finally {
+      this.hideLoadingOverlay();
+      this.isGenerating = false;
+    }
   }
 
   printStudentCardDirect() {
@@ -875,8 +1459,8 @@ export class PdfService {
      3. EXPORTAÇÃO DA PAUTA DE NOTAS & AVALIAÇÕES (AUTOTABLE VETORIAL)
      ========================================================================= */
   async exportGradesPauta(turmaId = null, disciplineId = null) {
-    const currentTurmaId = turmaId 
-      || this.app.selectedGradeTurmaId 
+    const currentTurmaId = turmaId
+      || this.app.selectedGradeTurmaId
       || document.getElementById('notas-filter-turma')?.value
       || (this.app.state.classes && this.app.state.classes[0]?.id);
     const turma = (this.app.state.classes || []).find(t => t.id === currentTurmaId) || (this.app.state.classes || [])[0];
@@ -1413,8 +1997,8 @@ export class PdfService {
       'portrait'
     );
 
-    const tableEl = document.querySelector('#tab-financeiro table') 
-      || document.getElementById('financial-report-table') 
+    const tableEl = document.querySelector('#tab-financeiro table')
+      || document.getElementById('financial-report-table')
       || document.querySelector('#modal-financial-report table')
       || document.querySelector('#modal-student-carne table');
 
@@ -1469,8 +2053,8 @@ export class PdfService {
      ========================================================================= */
   async exportMatriz() {
     const courseSelect = document.getElementById('curriculum-filter-curso');
-    const courseName = (courseSelect && courseSelect.options[courseSelect.selectedIndex]) 
-      ? courseSelect.options[courseSelect.selectedIndex].text 
+    const courseName = (courseSelect && courseSelect.options[courseSelect.selectedIndex])
+      ? courseSelect.options[courseSelect.selectedIndex].text
       : 'Geral';
     const filename = `Matriz_Curricular_${courseName}`;
 
@@ -1536,7 +2120,7 @@ export class PdfService {
       'landscape'
     );
 
-    const tableEl = document.querySelector('#schedule-turmas-view-container table') 
+    const tableEl = document.querySelector('#schedule-turmas-view-container table')
       || document.querySelector('#tab-horarios table')
       || document.querySelector('.schedule-grid-container table');
 
@@ -1579,8 +2163,8 @@ export class PdfService {
      11. EXPORTAÇÃO DO CALENDÁRIO ACADÊMICO (AUTOTABLE VETORIAL)
      ========================================================================= */
   async exportCalendar() {
-    const monthTitle = document.getElementById('calendar-month-title')?.textContent?.trim() 
-      || document.getElementById('calendar-current-month-display')?.textContent?.trim() 
+    const monthTitle = document.getElementById('calendar-month-title')?.textContent?.trim()
+      || document.getElementById('calendar-current-month-display')?.textContent?.trim()
       || '2026';
     const filename = `Calendario_Academico_${monthTitle.replace(/\s+/g, '_')}`;
 
